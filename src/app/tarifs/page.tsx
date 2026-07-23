@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
+import { getAuth } from "@/lib/auth";
 
 const PACKS = [
-  { name: "Essai",      tokens: 3,  bonus: 0, price: 24,  perToken: "8,00", highlight: false, badge: "🧪", save: null },
-  { name: "Découverte", tokens: 10, bonus: 0, price: 75,  perToken: "7,50", highlight: false, badge: "🥉", save: null },
-  { name: "Pro",        tokens: 25, bonus: 0, price: 175, perToken: "7,00", highlight: true,  badge: "🥈", save: null },
+  { name: "Starter",    packId: "starter",  tokens: 5,  bonus: 0, price: 9.90,  perToken: "1,98", highlight: false, badge: "🧪", save: null },
+  { name: "Pro",        packId: "pro",       tokens: 12, bonus: 0, price: 19.90, perToken: "1,65", highlight: true,  badge: "🥈", save: null },
+  { name: "Premium",    packId: "premium",   tokens: 25, bonus: 0, price: 34.90, perToken: "1,39", highlight: false, badge: "🥇", save: null },
 ];
 
 const FAQ = [
@@ -136,16 +137,26 @@ export default function TarifsPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/partenaire" className="no-underline mt-4">
-                  <button className="w-full py-3 rounded-[11px] font-bold text-[14px] border-0 cursor-pointer transition-opacity hover:opacity-90"
-                    style={p.highlight
-                      ? { background: "#fff", color: "#0F5C44" }
-                      : { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
-                    }
-                  >
-                    Choisir ce pack
-                  </button>
-                </Link>
+                <button
+                  onClick={async () => {
+                    const auth = getAuth();
+                    if (!auth) { window.location.href = "/partenaire"; return; }
+                    const res = await fetch("/api/stripe/create-checkout", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ pack: p.packId, userId: auth.id }),
+                    });
+                    const { url } = await res.json();
+                    if (url) window.location.href = url;
+                  }}
+                  className="w-full py-3 rounded-[11px] font-bold text-[14px] border-0 cursor-pointer transition-opacity hover:opacity-90 mt-4"
+                  style={p.highlight
+                    ? { background: "#fff", color: "#0F5C44" }
+                    : { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
+                  }
+                >
+                  Acheter ce pack
+                </button>
               </div>
             );
           })}
