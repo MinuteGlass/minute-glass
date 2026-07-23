@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --mg-green: #1D9E75;
+  --mg-green-dark: #0F5C44;
+  --mg-green-light: #E8F6F0;
+  --mg-orange: #D85A30;
+  --mg-orange-light: #FCEDE7;
+  --mg-bg: #F4F6F5;
+  --mg-text: #11211B;
+  --mg-muted: #6B7280;
+  --mg-border: #EAEFED;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: var(--mg-bg);
+  color: var(--mg-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--mg-green); color: #fff; }
+
+input, select, button, textarea { font-family: inherit; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: #d7ded9;
+  border-radius: 8px;
+  border: 2px solid var(--mg-bg);
+}
+
+@keyframes mgFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes mgPop {
+  from { opacity: 0; transform: scale(.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes mgPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(29,158,117,.45); }
+  50%       { box-shadow: 0 0 0 8px rgba(29,158,117,0); }
+}
+
+.animate-mgFade  { animation: mgFade  .25s ease; }
+.animate-mgPop   { animation: mgPop   .16s ease; }
+.animate-mgPulse { animation: mgPulse 1.8s ease 2; }
