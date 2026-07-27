@@ -1477,6 +1477,8 @@ function PartnerSignupScreen({ onSubmit, onBack }: { onSubmit: () => void; onBac
   const [nom, setNom]                 = useState("");
   const [gerant, setGerant]           = useState("");
   const [adresse, setAdresse]         = useState("");
+  const [codePostal, setCodePostal]   = useState("");
+  const [ville, setVille]             = useState("");
   const [siret, setSiret]             = useState("");
   const [tel, setTel]                 = useState("");
   const [email, setEmail]             = useState("");
@@ -1516,7 +1518,7 @@ function PartnerSignupScreen({ onSubmit, onBack }: { onSubmit: () => void; onBac
 
   const siretValid   = /^\d{14}$/.test(siret.replace(/\s/g, ""));
   const telValid     = /^\d{10}$/.test(tel.replace(/[\s.-]/g, ""));
-  const canRegister  = nom && gerant && adresse && siretValid && telValid && email.includes("@") && password.length >= 8 && selectedRegions.size > 0 && selectedPrestations.size > 0 && kbis !== null;
+  const canRegister  = nom && gerant && adresse && codePostal && ville && siretValid && telValid && email.includes("@") && password.length >= 8 && selectedRegions.size > 0 && selectedPrestations.size > 0 && kbis !== null;
 
   async function handleSignup() {
     if (!canRegister) return;
@@ -1588,7 +1590,11 @@ function PartnerSignupScreen({ onSubmit, onBack }: { onSubmit: () => void; onBac
             <Field label="Nom de la société *" value={nom} onChange={setNom} placeholder="Ex : Vitro Pro Lyon" />
             <Field label="Nom & prénom du gérant *" value={gerant} onChange={setGerant} placeholder="Ex : Paul Martin" />
           </div>
-          <div className="mt-4"><Field label="Adresse de la société *" value={adresse} onChange={setAdresse} placeholder="24 rue de la République, 69002 Lyon" /></div>
+          <div className="mt-4"><Field label="Adresse de la société *" value={adresse} onChange={setAdresse} placeholder="24 rue de la République" /></div>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <Field label="Code postal *" value={codePostal} onChange={setCodePostal} placeholder="69002" />
+            <Field label="Ville *" value={ville} onChange={setVille} placeholder="Lyon" />
+          </div>
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div>
               <label className="block text-[13px] font-bold mb-1.5">Numéro de SIRET *</label>
