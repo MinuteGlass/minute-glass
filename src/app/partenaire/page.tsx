@@ -1926,7 +1926,7 @@ export default function PartenairePage() {
             </button>
           </div>
         </div>
-      )}}
+      )}
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (

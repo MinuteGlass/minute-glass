@@ -29,4 +29,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
-// Mon Jul 27 12:58:32 CEST 2026

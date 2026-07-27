@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { getAuth } from "@/lib/auth";
@@ -32,14 +31,14 @@ export default function TarifsPage() {
   const [simType, setSimType] = useState<string>("remplacement_sans");
   const [simQty, setSimQty] = useState(5);
   const [showSuccess, setShowSuccess] = useState(false);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (searchParams.get("success") === "1") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "1") {
       setShowSuccess(true);
       window.history.replaceState({}, "", "/tarifs");
     }
-  }, [searchParams]);
+  }, []);
 
   const costPerFiche = INTERVENTION_COSTS[simType];
   const tokensNeeded = simQty * costPerFiche;
