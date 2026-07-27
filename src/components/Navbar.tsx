@@ -125,10 +125,10 @@ export function Navbar() {
         ) : (
           /* ── Non connecté : deux CTAs distincts ── */
           <>
-            {/* Espace client — ghost button, desktop only */}
+            {/* Espace client — desktop only */}
             <Link
               href="/connexion"
-              className="inline-flex items-center gap-1.5 no-underline rounded-[10px] px-[14px] py-[10px] font-bold text-[13px] transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 no-underline rounded-[10px] px-[14px] py-[10px] font-bold text-[13px] transition-colors"
               style={{ color: "#3d4b44", border: "1px solid #EAEFED", background: "#fff" }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -138,10 +138,10 @@ export function Navbar() {
               Espace client
             </Link>
 
-            {/* Espace réparateur — ghost button */}
+            {/* Espace réparateur — desktop only */}
             <Link
               href="/partenaire"
-              className="inline-flex items-center gap-1.5 no-underline rounded-[10px] px-[14px] py-[10px] font-bold text-[13px] transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 no-underline rounded-[10px] px-[14px] py-[10px] font-bold text-[13px] transition-colors"
               style={{ color: "#3d4b44", border: "1px solid #EAEFED", background: "#fff" }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -164,6 +164,34 @@ export function Navbar() {
                 <span className="sm:hidden">Déposer</span>
               </button>
             </Link>
+
+            {/* Menu mobile — hamburger pour Espace client / réparateur */}
+            <div className="relative sm:hidden" ref={dropdownRef}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-10 h-10 rounded-[10px] flex items-center justify-center border-0 cursor-pointer"
+                style={{ background: "#F4F6F5" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 6h18M3 12h18M3 18h18" stroke="#11211B" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+              {menuOpen && (
+                <div
+                  className="absolute right-0 top-[calc(100%+10px)] w-[220px] bg-white rounded-[14px] p-2 z-50"
+                  style={{ border: "1px solid #EAEFED", boxShadow: "0 12px 40px rgba(17,33,27,.16)" }}
+                >
+                  <Link href="/connexion" onClick={() => setMenuOpen(false)} className="no-underline flex items-center gap-2.5 rounded-[10px] px-3 py-3 font-bold text-[13.5px] hover:bg-[#F4F6F5]" style={{ color: "#11211B" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                    Espace client
+                  </Link>
+                  <Link href="/partenaire" onClick={() => setMenuOpen(false)} className="no-underline flex items-center gap-2.5 rounded-[10px] px-3 py-3 font-bold text-[13.5px] hover:bg-[#F4F6F5]" style={{ color: "#11211B" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Espace réparateur
+                  </Link>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

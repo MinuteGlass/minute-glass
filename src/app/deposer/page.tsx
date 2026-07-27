@@ -260,7 +260,7 @@ export default function DeposerPage() {
             <div className="animate-mgFade">
               <h2 className="m-0 mb-1 text-[19px] font-extrabold">Votre véhicule</h2>
               <p className="m-0 mb-6 text-[13.5px]" style={{ color: "#6B7280" }}>Ces infos aident le réparateur à préparer l'intervention.</p>
-              <div className="grid grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
                   <FieldLabel>Marque <Req /></FieldLabel>
                   <select value={marque} onChange={(e) => { setMarque(e.target.value); setMarqueAutre(""); }}
@@ -284,7 +284,7 @@ export default function DeposerPage() {
                   <SelectField value={annee} onChange={setAnnee} options={ANNEES} />
                 </div>
               </div>
-              <div className="grid grid-cols-[2fr_1fr] gap-3.5 mt-4">
+              <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr] gap-3.5 mt-4">
                 <div>
                   <FieldLabel>Ville <Req /></FieldLabel>
                   <InputField value={ville} onChange={setVille} placeholder="Ex : Lyon" />
@@ -334,7 +334,7 @@ export default function DeposerPage() {
             <div className="animate-mgFade">
               <h2 className="m-0 mb-1 text-[19px] font-extrabold">Le dégât</h2>
               <p className="m-0 mb-5 text-[13.5px]" style={{ color: "#6B7280" }}>Décrivez le type d'intervention souhaité.</p>
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 {([
                   { value: "remplacement", label: "Remplacement pare-brise", sub: "Fissuré ou très endommagé" },
                   { value: "reparation", label: "Réparation d'impact", sub: "Petit éclat ou impact localisé" },
