@@ -148,6 +148,20 @@ export default function DeposerPage() {
       photos:       photos.map((p) => p.dataUrl),
     });
 
+    // Email de confirmation au client
+    fetch("/api/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "confirmation_client",
+        to: email,
+        prenom,
+        title,
+        ville,
+        intervention: intervention ?? "remplacement",
+      }),
+    }).catch(() => {});
+
     if (!alreadyAuth) setAuth("particulier", email, prenom);
     toast("Votre demande a été publiée !", "success");
     setPublished(true);
