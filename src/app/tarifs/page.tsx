@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { getAuth } from "@/lib/auth";
@@ -30,6 +31,15 @@ export default function TarifsPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [simType, setSimType] = useState<string>("remplacement_sans");
   const [simQty, setSimQty] = useState(5);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("success") === "1") {
+      setShowSuccess(true);
+      window.history.replaceState({}, "", "/tarifs");
+    }
+  }, [searchParams]);
 
   const costPerFiche = INTERVENTION_COSTS[simType];
   const tokensNeeded = simQty * costPerFiche;
@@ -38,6 +48,20 @@ export default function TarifsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F4F6F5" }}>
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowSuccess(false)}>
+          <div className="bg-white rounded-[24px] p-10 max-w-[420px] w-full mx-4 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="text-[22px] font-extrabold mb-2">Paiement réussi !</h2>
+            <p className="text-[14px] font-semibold mb-6" style={{ color: "#6B7280" }}>
+              Vos jetons ont été crédités sur votre compte. Vous pouvez maintenant débloquer des fiches.
+            </p>
+            <button onClick={() => setShowSuccess(false)} className="w-full py-3 rounded-[11px] font-bold text-white border-0 cursor-pointer" style={{ background: "#1D9E75" }}>
+              Accéder aux demandes
+            </button>
+          </div>
+        </div>
+      )}
       <Navbar />
 
       {/* Hero */}
