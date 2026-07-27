@@ -15,13 +15,17 @@ export async function POST(req: NextRequest) {
   const p = PACKS[pack as keyof typeof PACKS];
   if (!p) return NextResponse.json({ error: "Pack invalide" }, { status: 400 });
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [{ price_data: { currency: "eur", product_data: { name: p.label }, unit_amount: p.prix }, quantity: 1 }],
-    metadata: { userId, pack, jetons: String(p.jetons) },
-    success_url: `${req.nextUrl.origin}/partenaire?success=1&jetons=${p.jetons}`,
-    cancel_url:  `${req.nextUrl.origin}/partenaire`,
-  });
-
-  return NextResponse.json({ url: session.url });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ price_data: { currency: "eur", product_data: { name: p.label }, unit_amount: p.prix }, quantity: 1 }],
+      metadata: { userId, pack, jetons: String(p.jetons) },
+      success_url: `${req.nextUrl.origin}/partenaire?success=1&jetons=${p.jetons}`,
+      cancel_url:  `${req.nextUrl.origin}/partenaire`,
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

@@ -50,9 +50,14 @@ function TokenModal({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({ pack: packId }),
       });
       const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else setLoading(null);
-    } catch {
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Erreur : " + (data.error ?? "Réponse inattendue"));
+        setLoading(null);
+      }
+    } catch (err) {
+      alert("Erreur réseau : " + String(err));
       setLoading(null);
     }
   }
