@@ -44,8 +44,7 @@ export async function signUp(
   if (error) {
     if (error.message?.includes("already")) return { error: "Un compte existe déjà avec cet email." };
     if (error.message?.includes("Password")) return { error: "Mot de passe trop faible (8 caractères min.)." };
-    if (!error.message || error.message === "{}") return { error: "Erreur de connexion au serveur. Vérifiez votre email." };
-    return { error: error.message };
+    return { error: error.message || JSON.stringify(error) };
   }
 
   const user = data.user;
