@@ -32,12 +32,31 @@ const INTERVENTION_LABELS: Record<string, { label: string; bg: string; color: st
 
 /* ─── Token Modal ─── */
 function TokenModal({ onClose }: { onClose: () => void }) {
+  const [loading, setLoading] = useState<string | null>(null);
+
   const PACKS = [
-    { name: "1 jeton",   tokens: 1,  price: 10,  bonus: 0, highlight: false, save: null, badge: "🎯" },
-    { name: "Starter",   tokens: 3,  price: 24,  bonus: 0, highlight: false, save: null, badge: "🚀" },
-    { name: "Essentiel", tokens: 10, price: 75,  bonus: 0, highlight: false, save: null, badge: "⭐" },
-    { name: "Pro",       tokens: 25, price: 175, bonus: 0, highlight: true,  save: null, badge: "💎" },
+    { name: "1 jeton",   packId: "solo",      tokens: 1,  price: 10,  highlight: false, badge: "🎯" },
+    { name: "Starter",   packId: "starter",   tokens: 3,  price: 24,  highlight: false, badge: "🚀" },
+    { name: "Essentiel", packId: "essentiel", tokens: 10, price: 75,  highlight: false, badge: "⭐" },
+    { name: "Pro",       packId: "pro",       tokens: 25, price: 175, highlight: true,  badge: "💎" },
   ];
+
+  async function handleBuy(packId: string) {
+    setLoading(packId);
+    try {
+      const res = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pack: packId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else setLoading(null);
+    } catch {
+      setLoading(null);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }} onClick={onClose}>
       <div className="bg-white rounded-[20px] p-7 w-full max-w-[540px] animate-mgPop" style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }} onClick={(e) => e.stopPropagation()}>
@@ -60,24 +79,25 @@ function TokenModal({ onClose }: { onClose: () => void }) {
             >
               <div className="font-extrabold text-[14px]">{p.badge} {p.name}</div>
               <div className="font-extrabold text-[28px] tracking-tight leading-none">
-                {p.tokens + p.bonus}
+                {p.tokens}
                 <span className={`text-[14px] font-semibold ml-1 ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>jetons</span>
               </div>
-              {p.save && <div className="text-[12px] font-semibold opacity-80">{p.save}</div>}
               <div className="text-[22px] font-extrabold mt-1" style={!p.highlight ? { color: "#0F5C44" } : {}}>
                 {p.price} €
               </div>
               <div className={`text-[11px] font-semibold ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>
-                {(p.price / (p.tokens + p.bonus)).toFixed(2).replace(".", ",")} €/jeton · sans expiration
+                {(p.price / p.tokens).toFixed(2).replace(".", ",")} €/jeton · sans expiration
               </div>
               <button
-                className="mt-2 w-full py-2.5 rounded-[10px] font-bold text-[13.5px] border-0 cursor-pointer transition-opacity hover:opacity-90"
+                onClick={() => handleBuy(p.packId)}
+                disabled={loading !== null}
+                className="mt-2 w-full py-2.5 rounded-[10px] font-bold text-[13.5px] border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={p.highlight
                   ? { background: "#fff", color: "#0F5C44" }
                   : { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
                 }
               >
-                Choisir
+                {loading === p.packId ? "…" : "Choisir"}
               </button>
             </div>
           ))}
@@ -1834,6 +1854,17 @@ export default function PartenairePage() {
   const [attributedElsewhere, setAttributedElsewhere] = useState<Set<string>>(new Set(["3"])); // seed : demande id "3" déjà prise
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [successJetons, setSuccessJetons] = useState<number | null>(null);
+
+  // Detect ?success=1 after Stripe payment
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "1") {
+      const jetons = Number(params.get("jetons") ?? 0);
+      setSuccessJetons(jetons);
+      window.history.replaceState({}, "", "/partenaire");
+    }
+  }, []);
 
   // Persist to localStorage on change
   useEffect(() => { try { localStorage.setItem("mg_tokens", String(tokens)); } catch {} }, [tokens]);
@@ -1870,6 +1901,27 @@ export default function PartenairePage() {
     <div className="min-h-screen" style={{ background: "#F4F6F5" }}>
       <PartnerNav tokens={tokens} onBuy={() => setShowTokenModal(true)} onNavigate={(n) => { setNav(n); setSidebarOpen(false); }} />
       {showTokenModal && <TokenModal onClose={() => setShowTokenModal(false)} />}
+
+      {/* Modale succès paiement Stripe */}
+      {successJetons !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }}>
+          <div className="bg-white rounded-[24px] p-10 max-w-[420px] w-full mx-4 text-center animate-mgPop" style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }}>
+            <div className="text-5xl mb-4">🎉</div>
+            <h2 className="m-0 text-[22px] font-extrabold mb-2">Paiement réussi !</h2>
+            <p className="m-0 text-[15px] font-semibold mb-1" style={{ color: "#6B7280" }}>
+              <span className="font-extrabold" style={{ color: "#0F5C44" }}>+{successJetons} jeton{successJetons > 1 ? "s" : ""}</span> crédités sur votre compte.
+            </p>
+            <p className="m-0 text-[13px] font-medium mb-8" style={{ color: "#9aa39e" }}>Utilisez-les pour débloquer des contacts clients.</p>
+            <button
+              onClick={() => setSuccessJetons(null)}
+              className="w-full py-3.5 rounded-[13px] font-bold text-[15px] text-white border-0 cursor-pointer hover:opacity-90 transition-opacity"
+              style={{ background: "linear-gradient(150deg,#0F5C44,#1D9E75)", boxShadow: "0 6px 20px rgba(15,92,68,.3)" }}
+            >
+              Accéder aux demandes
+            </button>
+          </div>
+        </div>
+      )}}
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
