@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "MinuteGlass <onboarding@resend.dev>",
+        from: "MinuteGlass <noreply@minuteglass.fr>",
         to: [to],
         subject: "✅ Votre demande a bien été reçue — MinuteGlass",
         html: confirmationClientHtml(prenom, title, ville, intervention),
