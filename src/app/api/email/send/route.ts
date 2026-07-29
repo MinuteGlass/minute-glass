@@ -1,4 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// Rate limiter in-memory par IP — protection anti-spam basique
+const RATE_WINDOW_MS = 60 * 1000;
+const MAX_PER_WINDOW = 3;
+const ipMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRate(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= MAX_PER_WINDOW;
+}
+
+function esc(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function confirmationClientHtml(prenom: string, title: string, ville: string, intervention: string) {
   const interventionLabel =
@@ -21,14 +52,14 @@ function confirmationClientHtml(prenom: string, title: string, ville: string, in
         </tr>
         <tr>
           <td style="padding:36px 40px;">
-            <p style="margin:0 0 8px;font-size:26px;font-weight:800;color:#11211B;">Bonjour ${prenom} 👋</p>
+            <p style="margin:0 0 8px;font-size:26px;font-weight:800;color:#11211B;">Bonjour ${esc(prenom)} 👋</p>
             <p style="margin:0 0 28px;font-size:15px;color:#6B7280;line-height:1.6;">Votre demande a bien été reçue. Des réparateurs certifiés de votre zone vont la consulter et vous contacter rapidement.</p>
             <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6F5;border-radius:14px;margin-bottom:28px;">
               <tr><td style="padding:24px 28px;">
                 <p style="margin:0 0 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#9aa39e;">Récapitulatif</p>
-                <p style="margin:0 0 8px;font-size:16px;font-weight:800;color:#11211B;">${title}</p>
-                <p style="margin:0 0 4px;font-size:13.5px;color:#6B7280;">📍 ${ville}</p>
-                <p style="margin:0;font-size:13.5px;color:#6B7280;">🔧 ${interventionLabel}</p>
+                <p style="margin:0 0 8px;font-size:16px;font-weight:800;color:#11211B;">${esc(title)}</p>
+                <p style="margin:0 0 4px;font-size:13.5px;color:#6B7280;">📍 ${esc(ville)}</p>
+                <p style="margin:0;font-size:13.5px;color:#6B7280;">🔧 ${esc(interventionLabel)}</p>
               </td></tr>
             </table>
             <p style="margin:0 0 16px;font-size:14px;font-weight:700;color:#11211B;">Que se passe-t-il maintenant ?</p>
@@ -51,7 +82,7 @@ function confirmationClientHtml(prenom: string, title: string, ville: string, in
         <tr>
           <td style="padding:20px 40px 28px;border-top:1px solid #EAEFED;">
             <p style="margin:0;font-size:12px;color:#9aa39e;line-height:1.6;">
-              Vous recevez cet email car vous avez déposé une demande sur <a href="https://minute-glass.vercel.app" style="color:#1D9E75;">MinuteGlass</a>.<br>
+              Vous recevez cet email car vous avez déposé une demande sur <a href="https://minuteglass.fr" style="color:#1D9E75;">MinuteGlass</a>.<br>
               © ${new Date().getFullYear()} MinuteGlass — Tous droits réservés.
             </p>
           </td>
@@ -64,9 +95,36 @@ function confirmationClientHtml(prenom: string, title: string, ville: string, in
 }
 
 export async function POST(req: NextRequest) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (!checkRate(ip)) {
+    return NextResponse.json({ error: "Trop de requêtes" }, { status: 429 });
+  }
+
   const { type, to, prenom, title, ville, intervention } = await req.json();
 
+  if (!to || typeof to !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return NextResponse.json({ error: "Email invalide" }, { status: 400 });
+  }
+
   if (type === "confirmation_client") {
+    // Vérifie que cet email correspond à une demande récemment soumise (< 10 min)
+    const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: demande } = await supabaseAdmin
+      .from("demandes")
+      .select("id")
+      .eq("email", to)
+      .gte("created_at", since)
+      .limit(1)
+      .single();
+
+    if (!demande) {
+      return NextResponse.json({ error: "Demande introuvable" }, { status: 403 });
+    }
+
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {

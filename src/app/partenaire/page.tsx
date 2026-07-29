@@ -7,6 +7,7 @@ import Link from "next/link";
 import { DEMANDES as SEED_DEMANDES } from "@/data/demandes";
 import { getLocalDemandes, onDemandesChange } from "@/lib/demandes-store";
 import { signIn, signUp, setAuth as setGlobalAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/Toast";
 import { ChatModal } from "@/components/ChatModal";
 import type { Demande } from "@/types";
@@ -44,9 +45,19 @@ function TokenModal({ onClose }: { onClose: () => void }) {
   async function handleBuy(packId: string) {
     setLoading(packId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        alert("Session expirée, veuillez vous reconnecter.");
+        setLoading(null);
+        return;
+      }
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify({ pack: packId }),
       });
       const data = await res.json();

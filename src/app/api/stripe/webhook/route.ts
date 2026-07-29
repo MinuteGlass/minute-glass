@@ -9,12 +9,18 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET manquant");
+    return NextResponse.json({ error: "Configuration serveur incorrecte" }, { status: 500 });
+  }
+
   const body = await req.text();
-  const sig  = req.headers.get("stripe-signature")!;
+  const sig  = req.headers.get("stripe-signature") ?? "";
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch {
     return NextResponse.json({ error: "Signature invalide" }, { status: 400 });
   }
