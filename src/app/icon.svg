@@ -1,8 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 100" fill="none">
-  <!-- M — dark navy -->
-  <path d="M8 88 L8 12 L48 60 L88 12 L88 88"
-        stroke="#11211B" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- G — teal green, centered at (110,50) radius 30 -->
-  <path d="M136 35 A30 30 0 1 0 136 65 L110 65"
-        stroke="#1D9E75" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="512"
+     height="512"
+     viewBox="0 0 512 512">
+
+  <!-- Fond transparent -->
+
+  <!-- M -->
+  <path
+    d="M120 400
+       V130
+       L255 270
+       L315 205"
+    fill="none"
+    stroke="#1B1F23"
+    stroke-width="34"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+
+  <!-- G -->
+  <path
+    d="M365 155
+       A110 110 0 1 0 365 357
+       H440"
+    fill="none"
+    stroke="#12B886"
+    stroke-width="34"
+    stroke-linecap="round"/>
+
+  <!-- Barre du G -->
+  <line
+    x1="365"
+    y1="256"
+    x2="438"
+    y2="256"
+    stroke="#12B886"
+    stroke-width="34"
+    stroke-linecap="round"/>
+
 </svg>
