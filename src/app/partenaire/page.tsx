@@ -1971,9 +1971,28 @@ export default function PartenairePage() {
     } catch {}
     setAuth("choice");
   }, []);
-  const [localDemandes, setLocalDemandes] = useState(getLocalDemandes());
-  useEffect(() => onDemandesChange(() => setLocalDemandes(getLocalDemandes())), []);
-  const DEMANDES = [...SEED_DEMANDES, ...localDemandes];
+  const [demandes, setDemandes] = useState<typeof SEED_DEMANDES>(SEED_DEMANDES);
+
+  // Charge les vraies demandes depuis Supabase
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      let token = session?.access_token;
+      if (!token) {
+        const { data } = await supabase.auth.refreshSession();
+        token = data.session?.access_token ?? undefined;
+      }
+      if (!token) return;
+      try {
+        const res = await fetch("/api/partenaire/demandes", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const { demandes: real } = await res.json();
+        if (Array.isArray(real) && real.length > 0) setDemandes(real);
+      } catch {}
+    });
+  }, []);
+
+  const DEMANDES = demandes;
 
   const [nav, setNav]                 = useState<NavItem>("dashboard");
   const [tokens, setTokens]           = useState<number>(() => {
