@@ -54,7 +54,18 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (existing) {
-    return NextResponse.json({ ok: true, alreadyUnlocked: true, tokens: profile.tokens });
+    const { data: demande } = await supabaseAdmin
+      .from("demandes")
+      .select("phone, email")
+      .eq("id", demandeId)
+      .single();
+    return NextResponse.json({
+      ok: true,
+      alreadyUnlocked: true,
+      tokens: profile.tokens,
+      phone: demande?.phone ?? null,
+      email: demande?.email ?? null,
+    });
   }
 
   // Débite les jetons
