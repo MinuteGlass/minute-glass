@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "@/components/Toast";
 import { Footer } from "@/components/Footer";
+import { CookieBanner } from "@/components/CookieBanner";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-[family-name:var(--font-jakarta)]" style={{ background: "#F4F6F5" }}>
         {children}
         <Footer />
+        <CookieBanner />
         <ToastContainer />
       </body>
     </html>
