@@ -687,6 +687,67 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
 }
 
 /* ─── Jetons & revenus view ─── */
+function CreditTokensForm() {
+  const [email, setEmail]   = useState("");
+  const [amount, setAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function handleSubmit() {
+    const n = parseInt(amount);
+    if (!email || !n) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const token = sessionStorage.getItem("mg_admin_token") ?? "";
+      const res = await fetch("/api/admin/credit-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": token },
+        body: JSON.stringify({ email, amount: n, reason }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResult({ ok: true, message: `✅ ${data.name} : ${data.previousBalance} → ${data.newBalance} jetons (${n > 0 ? "+" : ""}${n})` });
+        setEmail(""); setAmount(""); setReason("");
+      } else {
+        setResult({ ok: false, message: `❌ ${data.error}` });
+      }
+    } catch {
+      setResult({ ok: false, message: "❌ Erreur réseau" });
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-6 mb-6" style={{ border: "1px solid #EAEFED" }}>
+      <h2 className="m-0 mb-1 text-[16px] font-extrabold">Crédit / débit manuel</h2>
+      <p className="m-0 mb-4 text-[13px]" style={{ color: "#6B7280" }}>Créditer ou débiter des jetons sur un compte réparateur.</p>
+      <div className="flex gap-3 flex-wrap">
+        <input type="email" placeholder="Email du réparateur" value={email} onChange={e => setEmail(e.target.value)}
+          className="rounded-[10px] px-3.5 py-2.5 text-[13.5px] outline-none flex-1 min-w-[220px]"
+          style={{ border: "1px solid #EAEFED" }} />
+        <input type="number" placeholder="Jetons (+5 ou -3)" value={amount} onChange={e => setAmount(e.target.value)}
+          className="rounded-[10px] px-3.5 py-2.5 text-[13.5px] outline-none w-[140px]"
+          style={{ border: "1px solid #EAEFED" }} />
+        <input type="text" placeholder="Raison (optionnel)" value={reason} onChange={e => setReason(e.target.value)}
+          className="rounded-[10px] px-3.5 py-2.5 text-[13.5px] outline-none flex-1 min-w-[180px]"
+          style={{ border: "1px solid #EAEFED" }} />
+        <button onClick={handleSubmit} disabled={loading || !email || !amount}
+          className="rounded-[10px] px-5 py-2.5 text-[13.5px] font-bold text-white border-0 cursor-pointer disabled:opacity-50"
+          style={{ background: "#1D9E75" }}>
+          {loading ? "…" : "Appliquer"}
+        </button>
+      </div>
+      {result && (
+        <p className="mt-3 text-[13px] font-semibold" style={{ color: result.ok ? "#0F5C44" : "#D85A30" }}>
+          {result.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function JetonsView({ transactions }: { transactions: TokenTx[] }) {
   const totalRevenue = transactions.filter(t => t.statut === "Payé").reduce((acc, t) => acc + parseFloat(t.montant.replace(",", ".").replace(" €", "")), 0);
   const totalJetons  = transactions.filter(t => t.statut === "Payé").reduce((acc, t) => acc + t.jetons, 0);
@@ -702,6 +763,8 @@ function JetonsView({ transactions }: { transactions: TokenTx[] }) {
         <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Jetons & revenus</h1>
         <p className="m-0 mt-1 text-[14px] font-medium" style={{ color: "#6B7280" }}>Suivi des transactions et revenus de la plateforme.</p>
       </div>
+
+      <CreditTokensForm />
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <KpiCard label="Revenus totaux" value={`${totalRevenue.toLocaleString("fr-FR")} €`} sub="Toutes transactions payées" color="#7C3AED"
