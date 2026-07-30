@@ -34,6 +34,19 @@ const INTERVENTION_LABELS: Record<string, { label: string; bg: string; color: st
 /* ─── Token Modal ─── */
 function TokenModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  // Récupère le token au montage du modal pour éviter la latence au clic
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.access_token) {
+        setAuthToken(session.access_token);
+      } else {
+        const { data } = await supabase.auth.refreshSession();
+        setAuthToken(data.session?.access_token ?? null);
+      }
+    });
+  }, []);
 
   const PACKS = [
     { name: "1 jeton",   packId: "solo",      tokens: 1,  price: 10,  highlight: false, badge: "🎯" },
@@ -45,12 +58,7 @@ function TokenModal({ onClose }: { onClose: () => void }) {
   async function handleBuy(packId: string) {
     setLoading(packId);
     try {
-      let { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        const refreshed = await supabase.auth.refreshSession();
-        session = refreshed.data.session;
-      }
-      const token = session?.access_token;
+      const token = authToken;
       if (!token) {
         alert("Session expirée, veuillez vous reconnecter.");
         setLoading(null);
