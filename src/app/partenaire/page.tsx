@@ -1977,7 +1977,15 @@ export default function PartenairePage() {
 
   const [nav, setNav]                 = useState<NavItem>("dashboard");
   const [tokens, setTokens]           = useState<number>(() => {
-    try { const v = localStorage.getItem("mg_tokens"); return v ? Number(v) : 12; } catch { return 12; }
+    try {
+      const auth = localStorage.getItem("mg_auth");
+      if (auth) {
+        const parsed = JSON.parse(auth);
+        if (typeof parsed?.tokens === "number") return parsed.tokens;
+      }
+      const v = localStorage.getItem("mg_tokens");
+      return v ? Number(v) : 0;
+    } catch { return 0; }
   });
   const [showTokenModal, setShowTokenModal] = useState(false);
   // Lifted state — shared across all views
@@ -2005,6 +2013,20 @@ export default function PartenairePage() {
       setSuccessJetons(jetons);
       window.history.replaceState({}, "", "/partenaire");
     }
+  }, []);
+
+  // Sync tokens depuis mg_auth quand l'API les met à jour (unlock, achat)
+  useEffect(() => {
+    function syncTokens() {
+      try {
+        const raw = localStorage.getItem("mg_auth");
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.tokens === "number") setTokens(parsed.tokens);
+      } catch {}
+    }
+    window.addEventListener("mg_auth_change", syncTokens);
+    return () => window.removeEventListener("mg_auth_change", syncTokens);
   }, []);
 
   // Persist to localStorage on change
