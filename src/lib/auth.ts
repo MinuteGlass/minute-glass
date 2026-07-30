@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
 export type AuthRole = "particulier" | "partenaire";
+export type AuthStatut = "en attente" | "validé" | "suspendu" | "refusé";
 
 export interface AuthState {
   id: string;
@@ -8,6 +9,7 @@ export interface AuthState {
   email?: string;
   name?: string;
   tokens?: number;
+  statut?: AuthStatut;
 }
 
 const CACHE_KEY   = "mg_auth";
@@ -64,7 +66,7 @@ export async function signIn(
   // Récupère le profil pour avoir le rôle et les jetons
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, name, tokens")
+    .select("role, name, tokens, statut")
     .eq("id", user.id)
     .single();
 
@@ -74,6 +76,7 @@ export async function signIn(
     email:  user.email,
     name:   profile?.name ?? "",
     tokens: profile?.tokens ?? 0,
+    statut: (profile?.statut ?? "en attente") as AuthStatut,
   };
   writeCache(state);
   return { error: null, state };
@@ -114,7 +117,7 @@ export function onAuthChange(cb: () => void): () => void {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, name, tokens")
+      .select("role, name, tokens, statut")
       .eq("id", session.user.id)
       .single();
 
@@ -124,6 +127,7 @@ export function onAuthChange(cb: () => void): () => void {
       email:  session.user.email,
       name:   profile?.name ?? "",
       tokens: profile?.tokens ?? 0,
+      statut: (profile?.statut ?? "en attente") as AuthStatut,
     });
   });
 

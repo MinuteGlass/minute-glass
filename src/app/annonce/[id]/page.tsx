@@ -340,10 +340,12 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
   const tokenCost = calcTokenCost(demande.intervention, demande.insurance);
   const isPartner = auth?.role === "partenaire";
   const isParticulier = auth?.role === "particulier";
+  const isValidated = auth?.statut === "validé";
 
   function handleUnlockClick() {
     if (!auth) { setShowPartnerModal(true); return; }
     if (!isPartner) { setShowPartnerModal(true); return; }
+    if (!isValidated) return; // bloqué côté UI — l'API le refuserait de toute façon
     setShowUnlock(true);
   }
 
@@ -555,6 +557,29 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#9aa39e" strokeWidth="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="#9aa39e" strokeWidth="2" strokeLinecap="round"/></svg>
                         Fiche non disponible
                       </span>
+                    </div>
+                  ) : isPartner && !isValidated ? (
+                    <div className="w-full rounded-[11px] px-4 py-3.5 flex items-start gap-3" style={{ background: "#FEF3C7", border: "1px solid #FCD34D" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5">
+                        <path d="M12 9v4M12 16.5v.5" stroke="#92400E" strokeWidth="2" strokeLinecap="round"/>
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#92400E" strokeWidth="1.8" strokeLinejoin="round"/>
+                      </svg>
+                      <div>
+                        <div className="font-bold text-[13px]" style={{ color: "#92400E" }}>
+                          {auth?.statut === "refusé"
+                            ? "Compte refusé"
+                            : auth?.statut === "suspendu"
+                            ? "Compte suspendu"
+                            : "Compte en attente de validation"}
+                        </div>
+                        <div className="text-[12px] font-semibold mt-0.5" style={{ color: "#B45309" }}>
+                          {auth?.statut === "refusé"
+                            ? "Votre dossier n'a pas été accepté. Contactez-nous pour plus d'informations."
+                            : auth?.statut === "suspendu"
+                            ? "Votre compte est suspendu. Contactez le support."
+                            : "Votre dossier est en cours d'examen. Vous pourrez débloquer des fiches une fois validé."}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <button
