@@ -136,7 +136,7 @@ function DamageIllustration({ intervention }: { intervention: string }) {
 }
 
 /* Partner unlock modal */
-function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClose: () => void; onUnlocked: (newBalance: number) => void }) {
+function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClose: () => void; onUnlocked: (newBalance: number, phone: string | null, email: string | null) => void }) {
   const tokenCost = calcTokenCost(demande.intervention, demande.insurance);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -190,7 +190,16 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
       } catch {}
     }
 
-    onUnlocked(data.tokens);
+    // Stocke les vraies coordonnées dans mg_contacts
+    if (data.phone || data.email) {
+      try {
+        const contacts = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+        contacts[demande.id] = { phone: data.phone, email: data.email };
+        localStorage.setItem("mg_contacts", JSON.stringify(contacts));
+      } catch {}
+    }
+
+    onUnlocked(data.tokens, data.phone, data.email);
     onClose();
   }
 
@@ -311,6 +320,7 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
   const [demande, setDemande] = useState<Demande | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const [showUnlock, setShowUnlock] = useState(false);
+  const [contacts, setContacts] = useState<{phone: string; email: string} | null>(null);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -324,7 +334,14 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
     try {
       const stored = localStorage.getItem("mg_unlocked");
       const ids: string[] = stored ? JSON.parse(stored) : [];
-      setUnlocked(ids.includes(found.id) || (found.isUnlocked ?? false));
+      const isUnlocked = ids.includes(found.id) || (found.isUnlocked ?? false);
+      setUnlocked(isUnlocked);
+      if (isUnlocked) {
+        try {
+          const mgContacts = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+          if (mgContacts[found.id]) setContacts(mgContacts[found.id]);
+        } catch {}
+      }
 
       const counts: Record<string, number> = JSON.parse(localStorage.getItem("mg_unlock_counts") ?? "{}");
       const attributed: string[] = JSON.parse(localStorage.getItem("mg_attributed") ?? "[]");
@@ -357,9 +374,9 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
         <UnlockModal
           demande={demande}
           onClose={() => setShowUnlock(false)}
-          onUnlocked={(newBalance) => {
+          onUnlocked={(newBalance, phone, email) => {
             setUnlocked(true);
-            // Persiste aussi en localStorage pour la session en cours
+            if (phone || email) setContacts({ phone: phone ?? "", email: email ?? "" });
             const stored = JSON.parse(localStorage.getItem("mg_unlocked") ?? "[]") as string[];
             if (!stored.includes(demande.id)) {
               localStorage.setItem("mg_unlocked", JSON.stringify([...stored, demande.id]));
@@ -509,19 +526,19 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
                       <span className="font-bold text-[15px]">{demande.clientName}</span>
                     </div>
                   )}
-                  <a href={`tel:${(demande.phone ?? "06 00 00 00 00").replace(/\s/g, "")}`}
+                  <a href={`tel:${(contacts?.phone ?? demande.phone ?? "").replace(/\s/g, "")}`}
                     className="no-underline flex items-center gap-3 rounded-[11px] px-3.5 py-3 font-bold text-[13.5px] transition-colors hover:bg-[#E8F6F0]"
                     style={{ background: "#F4F6F5", color: "#0F5C44" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2a11.5 11.5 0 003.6.7c.6 0 1 .4 1 1V19c0 .6-.4 1-1 1A17 17 0 013 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.7 3.6.1.3 0 .7-.2 1l-2.4 2.2Z" stroke="#1D9E75" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    {demande.phone ?? "06 84 21 55 09"}
+                    {contacts?.phone ?? demande.phone ?? "—"}
                   </a>
-                  <a href={`mailto:${demande.email ?? "contact@email.com"}`}
+                  <a href={`mailto:${contacts?.email ?? demande.email ?? ""}`}
                     className="no-underline flex items-center gap-3 rounded-[11px] px-3.5 py-3 font-bold text-[13.5px] transition-colors hover:bg-[#E8F6F0]"
                     style={{ background: "#F4F6F5", color: "#0F5C44" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="#1D9E75" strokeWidth="1.8"/><path d="M22 6l-10 7L2 6" stroke="#1D9E75" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                    {demande.email ?? "contact@email.com"}
+                    {contacts?.email ?? demande.email ?? "—"}
                   </a>
                   <button
                     onClick={() => setChatOpen(true)}

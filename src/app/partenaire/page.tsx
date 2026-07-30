@@ -382,21 +382,24 @@ interface FeedListProps {
   tab: Tab;
   tokens: number;
   onTokenSpent: (cost: number) => void;
+  onBalanceUpdate: (newBalance: number) => void;
   unlocked: Set<string>;
   favs: Set<string>;
-  onUnlock: (id: string) => void;
+  onUnlock: (id: string, phone: string | null, email: string | null) => void;
   onToggleFav: (id: string) => void;
   attributedToMe: Set<string>;
   attributedElsewhere: Set<string>;
   onAttributed: (id: string) => void;
   demandes: Demande[];
   globalUnlockCounts: Record<string, number>;
+  contacts: Record<string, { phone: string; email: string }>;
 }
 
-function FeedList({ tab, tokens, onTokenSpent, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts }: FeedListProps) {
+function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts }: FeedListProps) {
   const [chatDemande, setChatDemande]     = useState<Demande | null>(null);
   const [justUnlocked, setJustUnlocked]   = useState<string | null>(null);
   const [confirmDemande, setConfirmDemande] = useState<Demande | null>(null);
+  const [loadingUnlock, setLoadingUnlock] = useState(false);
 
   const items = demandes.filter((d) => {
     if (tab === "sans")       return d.insurance === "sans";
@@ -449,18 +452,59 @@ function FeedList({ tab, tokens, onTokenSpent, unlocked, favs, onUnlock, onToggl
               Annuler
             </button>
             <button
-              onClick={() => {
+              disabled={loadingUnlock}
+              onClick={async () => {
                 const cost = tokenCost(confirmDemande.intervention, confirmDemande.insurance);
-                onUnlock(confirmDemande.id);
-                onTokenSpent(cost);
-                setJustUnlocked(confirmDemande.id);
-                setTimeout(() => setJustUnlocked(null), 4000);
-                setConfirmDemande(null);
+                // Les IDs seed sont numériques — les vraies demandes Supabase ont des UUIDs
+                const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (!UUID_RE.test(confirmDemande.id)) {
+                  alert("Ces données sont des exemples de démo et ne peuvent pas être débloquées. Les vraies demandes clients apparaîtront ici une fois soumises.");
+                  setConfirmDemande(null);
+                  return;
+                }
+                setLoadingUnlock(true);
+                try {
+                  let { data: { session } } = await supabase.auth.getSession();
+                  if (!session?.access_token) {
+                    const { data: refreshed } = await supabase.auth.refreshSession();
+                    session = refreshed.session;
+                  }
+                  const token = session?.access_token;
+                  if (!token) { alert("Session expirée — veuillez vous reconnecter."); setConfirmDemande(null); setLoadingUnlock(false); return; }
+                  const res = await fetch("/api/partenaire/unlock", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ demandeId: confirmDemande.id, cost }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) { alert(data.error ?? "Erreur lors du déblocage"); setLoadingUnlock(false); return; }
+                  // Met à jour le cache des jetons
+                  const cached = localStorage.getItem("mg_auth");
+                  if (cached) {
+                    const parsed = JSON.parse(cached);
+                    parsed.tokens = data.tokens;
+                    localStorage.setItem("mg_auth", JSON.stringify(parsed));
+                    window.dispatchEvent(new Event("mg_auth_change"));
+                  }
+                  // Stocke les coordonnées
+                  if (data.phone || data.email) {
+                    const mgContacts = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+                    mgContacts[confirmDemande.id] = { phone: data.phone ?? "", email: data.email ?? "" };
+                    localStorage.setItem("mg_contacts", JSON.stringify(mgContacts));
+                  }
+                  onUnlock(confirmDemande.id, data.phone, data.email);
+                  onBalanceUpdate(data.tokens);
+                  setJustUnlocked(confirmDemande.id);
+                  setTimeout(() => setJustUnlocked(null), 4000);
+                } finally {
+                  setLoadingUnlock(false);
+                  setConfirmDemande(null);
+                }
               }}
-              className="flex-1 py-3 rounded-[11px] font-bold text-[14px] text-white border-0 cursor-pointer"
+              className="flex-1 py-3 rounded-[11px] font-bold text-[14px] text-white border-0 cursor-pointer disabled:opacity-60"
               style={{ background: "#1D9E75", boxShadow: "0 4px 12px rgba(29,158,117,.3)" }}
             >
-              Confirmer — {tokenCost(confirmDemande.intervention, confirmDemande.insurance)} jeton{tokenCost(confirmDemande.intervention, confirmDemande.insurance) > 1 ? "s" : ""}
+              {loadingUnlock ? "…" : `Confirmer — ${tokenCost(confirmDemande.intervention, confirmDemande.insurance)} jeton${tokenCost(confirmDemande.intervention, confirmDemande.insurance) > 1 ? "s" : ""}`}
             </button>
           </div>
         </div>
@@ -549,11 +593,11 @@ function FeedList({ tab, tokens, onTokenSpent, unlocked, favs, onUnlock, onToggl
                 <>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] font-bold uppercase" style={{ color: "#9aa39e" }}>Tél.</span>
-                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>06 84 21 55 09</span>
+                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>{contacts[d.id]?.phone || "—"}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] font-bold uppercase" style={{ color: "#9aa39e" }}>Email</span>
-                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>contact@email.fr</span>
+                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>{contacts[d.id]?.email || "—"}</span>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); setChatDemande(d); }} className="inline-flex items-center gap-1.5 text-white rounded-[10px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer hover:opacity-90 transition-opacity" style={{ background: "#0F5C44" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.5 7.2L4 20l1-4.5A8 8 0 1121 12Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/></svg>
@@ -573,11 +617,11 @@ function FeedList({ tab, tokens, onTokenSpent, unlocked, favs, onUnlock, onToggl
                   )}
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] font-bold uppercase" style={{ color: "#9aa39e" }}>Tél.</span>
-                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>06 84 21 55 09</span>
+                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>{contacts[d.id]?.phone || "—"}</span>
                   </div>
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] font-bold uppercase" style={{ color: "#9aa39e" }}>Email</span>
-                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>contact@email.fr</span>
+                    <span className="font-bold text-[13px]" style={{ color: "#0F5C44" }}>{contacts[d.id]?.email || "—"}</span>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); setChatDemande(d); }} className="inline-flex items-center gap-1.5 text-white rounded-[10px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer hover:opacity-90 transition-opacity" style={{ background: "#11211B" }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M21 12a8 8 0 01-11.5 7.2L4 20l1-4.5A8 8 0 1121 12Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/></svg>
@@ -621,13 +665,15 @@ function FeedList({ tab, tokens, onTokenSpent, unlocked, favs, onUnlock, onToggl
 }
 
 /* ─── Dashboard view ─── */
-function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts }: {
+function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts, onBalanceUpdate }: {
   tokens: number; onBuy: () => void;
   unlocked: Set<string>; favs: Set<string>;
-  onUnlock: (id: string) => void; onToggleFav: (id: string) => void;
+  onUnlock: (id: string, phone: string | null, email: string | null) => void; onToggleFav: (id: string) => void;
   attributedToMe: Set<string>; attributedElsewhere: Set<string>; onAttributed: (id: string) => void;
   demandes: Demande[];
   globalUnlockCounts: Record<string, number>;
+  contacts: Record<string, { phone: string; email: string }>;
+  onBalanceUpdate: (newBalance: number) => void;
 }) {
   return (
     <div>
@@ -681,19 +727,21 @@ function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, a
         <h2 className="m-0 text-[17px] font-extrabold">Dernières demandes</h2>
         <span className="text-[13px] font-bold cursor-pointer" style={{ color: "#1D9E75" }}>Voir toutes →</span>
       </div>
-      <FeedList tab="toutes" tokens={tokens} onTokenSpent={(_cost) => {}} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} />
+      <FeedList tab="toutes" tokens={tokens} onTokenSpent={(_cost) => {}} onBalanceUpdate={onBalanceUpdate} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} contacts={contacts} />
     </div>
   );
 }
 
 /* ─── Demandes view (with tabs) ─── */
-function DemandesView({ tokens, onTokenSpent, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts }: {
+function DemandesView({ tokens, onTokenSpent, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts, onBalanceUpdate }: {
   tokens: number; onTokenSpent: (cost: number) => void;
   unlocked: Set<string>; favs: Set<string>;
-  onUnlock: (id: string) => void; onToggleFav: (id: string) => void;
+  onUnlock: (id: string, phone: string | null, email: string | null) => void; onToggleFav: (id: string) => void;
   attributedToMe: Set<string>; attributedElsewhere: Set<string>; onAttributed: (id: string) => void;
   demandes: Demande[];
   globalUnlockCounts: Record<string, number>;
+  contacts: Record<string, { phone: string; email: string }>;
+  onBalanceUpdate: (newBalance: number) => void;
 }) {
   const [tab, setTab] = useState<Tab>("toutes");
   const tabs: { id: Tab; label: string }[] = [
@@ -723,13 +771,13 @@ function DemandesView({ tokens, onTokenSpent, unlocked, favs, onUnlock, onToggle
           ))}
         </div>
       </div>
-      <FeedList tab={tab} tokens={tokens} onTokenSpent={onTokenSpent} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} />
+      <FeedList tab={tab} tokens={tokens} onTokenSpent={onTokenSpent} onBalanceUpdate={onBalanceUpdate} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} contacts={contacts} />
     </div>
   );
 }
 
 /* ─── Débloquées view ─── */
-function DebloquéesView({ unlocked, favs, onToggleFav, demandes }: { unlocked: Set<string>; favs: Set<string>; onToggleFav: (id: string) => void; demandes: Demande[] }) {
+function DebloquéesView({ unlocked, favs, onToggleFav, demandes, contacts }: { unlocked: Set<string>; favs: Set<string>; onToggleFav: (id: string) => void; demandes: Demande[]; contacts: Record<string, { phone: string; email: string }> }) {
   const [chatDemande, setChatDemande] = useState<Demande | null>(null);
   const items = demandes.filter((d) => unlocked.has(d.id));
 
@@ -772,11 +820,11 @@ function DebloquéesView({ unlocked, favs, onToggleFav, demandes }: { unlocked: 
                     <div className="rounded-[12px] p-4 flex gap-6 flex-wrap" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
                       <div>
                         <div className="text-[10.5px] font-bold uppercase mb-0.5" style={{ color: "#9aa39e" }}>Téléphone</div>
-                        <div className="font-extrabold text-[14px]" style={{ color: "#0F5C44" }}>06 84 21 55 09</div>
+                        <div className="font-extrabold text-[14px]" style={{ color: "#0F5C44" }}>{contacts[d.id]?.phone || "—"}</div>
                       </div>
                       <div>
                         <div className="text-[10.5px] font-bold uppercase mb-0.5" style={{ color: "#9aa39e" }}>Email</div>
-                        <div className="font-extrabold text-[14px]" style={{ color: "#0F5C44" }}>contact@email.fr</div>
+                        <div className="font-extrabold text-[14px]" style={{ color: "#0F5C44" }}>{contacts[d.id]?.email || "—"}</div>
                       </div>
                       <div>
                         <div className="text-[10.5px] font-bold uppercase mb-0.5" style={{ color: "#9aa39e" }}>Débloqué le</div>
@@ -2048,17 +2096,36 @@ export default function PartenairePage() {
     return () => window.removeEventListener("mg_auth_change", syncTokens);
   }, []);
 
+  // Coordonnées débloquées — chargées depuis mg_contacts au montage
+  const [contacts, setContacts] = useState<Record<string, { phone: string; email: string }>>(() => {
+    try { const v = localStorage.getItem("mg_contacts"); return v ? JSON.parse(v) : {}; } catch { return {}; }
+  });
+
   // Persist to localStorage on change
   useEffect(() => { try { localStorage.setItem("mg_tokens", String(tokens)); } catch {} }, [tokens]);
   useEffect(() => { try { localStorage.setItem("mg_unlocked", JSON.stringify([...unlocked])); } catch {} }, [unlocked]);
   useEffect(() => { try { localStorage.setItem("mg_unlock_counts", JSON.stringify(globalUnlockCounts)); } catch {} }, [globalUnlockCounts]);
   useEffect(() => { try { localStorage.setItem("mg_favs", JSON.stringify([...favs])); } catch {} }, [favs]);
 
-  function handleUnlock(id: string) {
+  function handleUnlock(id: string, phone: string | null, email: string | null) {
     setUnlocked((prev) => new Set(prev).add(id));
     setGlobalUnlockCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+    if (phone || email) {
+      setContacts((prev) => ({ ...prev, [id]: { phone: phone ?? "", email: email ?? "" } }));
+    }
     const d = DEMANDES.find((d) => d.id === id);
     toast(`Fiche débloquée${d ? ` — ${d.title}` : ""} ! Coordonnées visibles.`, "success");
+  }
+  function handleBalanceUpdate(newBalance: number) {
+    setTokens(newBalance);
+    try {
+      const raw = localStorage.getItem("mg_auth");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        parsed.tokens = newBalance;
+        localStorage.setItem("mg_auth", JSON.stringify(parsed));
+      }
+    } catch {}
   }
   function handleToggleFav(id: string) {
     setFavs((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -2133,9 +2200,9 @@ export default function PartenairePage() {
             Menu
           </button>
 
-          {nav === "dashboard"   && <DashboardView tokens={tokens} onBuy={() => setShowTokenModal(true)} unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} />}
-          {nav === "demandes"    && <DemandesView tokens={tokens} onTokenSpent={handleTokenSpent} unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} />}
-          {nav === "debloquees"  && <DebloquéesView unlocked={unlocked} favs={favs} onToggleFav={handleToggleFav} demandes={DEMANDES} />}
+          {nav === "dashboard"   && <DashboardView tokens={tokens} onBuy={() => setShowTokenModal(true)} unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} contacts={contacts} onBalanceUpdate={handleBalanceUpdate} />}
+          {nav === "demandes"    && <DemandesView tokens={tokens} onTokenSpent={handleTokenSpent} unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} contacts={contacts} onBalanceUpdate={handleBalanceUpdate} />}
+          {nav === "debloquees"  && <DebloquéesView unlocked={unlocked} favs={favs} onToggleFav={handleToggleFav} demandes={DEMANDES} contacts={contacts} />}
           {nav === "favoris"     && <FavorisView favs={favs} unlocked={unlocked} onToggleFav={handleToggleFav} demandes={DEMANDES} />}
           {nav === "facturation" && <FacturationView tokens={tokens} onBuy={() => setShowTokenModal(true)} />}
           {nav === "zone"        && <ZoneView />}

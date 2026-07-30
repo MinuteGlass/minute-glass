@@ -79,5 +79,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: unlockErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, tokens: newBalance });
+  // Récupère les vraies coordonnées du client
+  const { data: demande } = await supabaseAdmin
+    .from("demandes")
+    .select("phone, email")
+    .eq("id", demandeId)
+    .single();
+
+  return NextResponse.json({
+    ok: true,
+    tokens: newBalance,
+    phone: demande?.phone ?? null,
+    email: demande?.email ?? null,
+  });
 }
