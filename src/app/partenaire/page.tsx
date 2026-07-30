@@ -1466,7 +1466,7 @@ function AideView() {
           </span>
           <div>
             <div className="font-extrabold text-[14.5px] mb-0.5">Email</div>
-            <div className="text-[12.5px] font-semibold mb-3" style={{ color: "#6B7280" }}>support@minuteglass.fr · Réponse sous 24h</div>
+            <div className="text-[12.5px] font-semibold mb-3" style={{ color: "#6B7280" }}>contact@minuteglass.fr · Réponse sous 24h</div>
             <button className="rounded-[9px] px-4 py-2 font-bold text-[13px] border-0 cursor-pointer" style={{ background: "#EAF1FE", color: "#2563EB" }}>Envoyer un email</button>
           </div>
         </div>
