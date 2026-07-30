@@ -32,53 +32,64 @@ const INTERVENTION_LABELS: Record<string, { label: string; bg: string; color: st
 
 
 /* ─── Token Modal ─── */
+const PACKS = [
+  { name: "1 jeton",   packId: "solo",      tokens: 1,  price: 10,  highlight: false, badge: "🎯" },
+  { name: "Starter",   packId: "starter",   tokens: 3,  price: 24,  highlight: false, badge: "🚀" },
+  { name: "Essentiel", packId: "essentiel", tokens: 10, price: 75,  highlight: false, badge: "⭐" },
+  { name: "Pro",       packId: "pro",       tokens: 25, price: 175, highlight: true,  badge: "💎" },
+];
+
 function TokenModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState<string | null>(null);
-  const [authToken, setAuthToken] = useState<string | null>(null);
+  // URLs pré-créées par pack — prêtes avant le clic
+  const checkoutUrls = useRef<Record<string, string>>({});
 
-  // Récupère le token au montage du modal pour éviter la latence au clic
   useEffect(() => {
+    // Récupère le token puis pré-crée toutes les sessions Stripe en parallèle
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.access_token) {
-        setAuthToken(session.access_token);
-      } else {
+      let token = session?.access_token;
+      if (!token) {
         const { data } = await supabase.auth.refreshSession();
-        setAuthToken(data.session?.access_token ?? null);
+        token = data.session?.access_token ?? undefined;
       }
+      if (!token) return;
+
+      await Promise.all(
+        PACKS.map(async (pack) => {
+          try {
+            const res = await fetch("/api/stripe/create-checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+              body: JSON.stringify({ pack: pack.packId }),
+            });
+            const data = await res.json();
+            if (data.url) checkoutUrls.current[pack.packId] = data.url;
+          } catch { /* silencieux — fallback au clic */ }
+        })
+      );
     });
   }, []);
 
-  const PACKS = [
-    { name: "1 jeton",   packId: "solo",      tokens: 1,  price: 10,  highlight: false, badge: "🎯" },
-    { name: "Starter",   packId: "starter",   tokens: 3,  price: 24,  highlight: false, badge: "🚀" },
-    { name: "Essentiel", packId: "essentiel", tokens: 10, price: 75,  highlight: false, badge: "⭐" },
-    { name: "Pro",       packId: "pro",       tokens: 25, price: 175, highlight: true,  badge: "💎" },
-  ];
-
   async function handleBuy(packId: string) {
     setLoading(packId);
+    // URL déjà prête → redirection instantanée
+    if (checkoutUrls.current[packId]) {
+      window.location.href = checkoutUrls.current[packId];
+      return;
+    }
+    // Fallback si la pré-création a échoué
     try {
-      const token = authToken;
-      if (!token) {
-        alert("Session expirée, veuillez vous reconnecter.");
-        setLoading(null);
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { alert("Session expirée, veuillez vous reconnecter."); setLoading(null); return; }
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ pack: packId }),
       });
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert("Erreur : " + (data.error ?? "Réponse inattendue"));
-        setLoading(null);
-      }
+      if (data.url) window.location.href = data.url;
+      else { alert("Erreur : " + (data.error ?? "Réponse inattendue")); setLoading(null); }
     } catch (err) {
       alert("Erreur réseau : " + String(err));
       setLoading(null);
