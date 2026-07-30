@@ -45,10 +45,12 @@ export function Footer() {
         <span className="text-[13px] font-semibold" style={{ color: "#9aa39e" }}>
           © {new Date().getFullYear()} Minute Glass · Tous droits réservés
         </span>
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-5 flex-wrap">
           <Link href="/comment-ca-marche" className="text-[13px] font-semibold no-underline hover:underline" style={{ color: "#9aa39e" }}>Comment ça marche</Link>
           <Link href="/deposer" className="text-[13px] font-semibold no-underline hover:underline" style={{ color: "#9aa39e" }}>Déposer une demande</Link>
           <Link href="/partenaire" className="text-[13px] font-semibold no-underline hover:underline" style={{ color: "#9aa39e" }}>Espace réparateur</Link>
+          <Link href="/mentions-legales" className="text-[13px] font-semibold no-underline hover:underline" style={{ color: "#9aa39e" }}>Mentions légales</Link>
+          <Link href="/politique-confidentialite" className="text-[13px] font-semibold no-underline hover:underline" style={{ color: "#9aa39e" }}>Confidentialité</Link>
         </div>
       </div>
     </footer>
