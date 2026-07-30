@@ -666,7 +666,7 @@ function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, a
             <span className="font-extrabold text-[14px]" style={{ color: "#0F5C44" }}>{tokens} jetons</span>
           </div>
           <div className="h-[9px] rounded-full overflow-hidden" style={{ background: "#EEF2F0" }}>
-            <div className="h-full rounded-full" style={{ width: `${Math.min((tokens / 35) * 100, 100)}%`, background: "linear-gradient(90deg,#1D9E75,#0F5C44)" }} />
+            <div className="h-full rounded-full" style={{ width: `${Math.min((tokens / 25) * 100, 100)}%`, background: "linear-gradient(90deg,#1D9E75,#0F5C44)" }} />
           </div>
           <div className="flex items-center gap-1.5 mt-2 text-[12px] font-semibold" style={{ color: "#6B7280" }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#9aa39e" strokeWidth="1.8"/><path d="M12 7v5l3 2" stroke="#9aa39e" strokeWidth="1.8" strokeLinecap="round"/></svg>
@@ -1191,6 +1191,7 @@ function ParametresView() {
   const [newPass, setNewPass] = useState("");
   const [passOk, setPassOk]   = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Validations
   const siretValid = /^\d{14}$/.test(siret.replace(/\s/g, ""));
@@ -1389,8 +1390,35 @@ function ParametresView() {
               <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-[11px] font-bold text-[13.5px] border-0 cursor-pointer" style={{ background: "#F4F6F5", color: "#6B7280" }}>
                 Annuler
               </button>
-              <button className="flex-1 py-3 rounded-[11px] font-extrabold text-[13.5px] text-white border-0 cursor-pointer" style={{ background: "#B0431F" }}>
-                Oui, supprimer
+              <button
+                disabled={deletingAccount}
+                onClick={async () => {
+                  setDeletingAccount(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const token = session?.access_token;
+                    if (!token) { alert("Session expirée."); setDeletingAccount(false); return; }
+                    const res = await fetch("/api/partenaire/delete-account", {
+                      method: "DELETE",
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (res.ok) {
+                      localStorage.clear();
+                      window.location.href = "/";
+                    } else {
+                      const { error } = await res.json();
+                      alert("Erreur : " + (error ?? "Suppression impossible"));
+                      setDeletingAccount(false);
+                    }
+                  } catch {
+                    alert("Erreur réseau.");
+                    setDeletingAccount(false);
+                  }
+                }}
+                className="flex-1 py-3 rounded-[11px] font-extrabold text-[13.5px] text-white border-0 cursor-pointer disabled:opacity-60"
+                style={{ background: "#B0431F" }}
+              >
+                {deletingAccount ? "Suppression…" : "Oui, supprimer"}
               </button>
             </div>
           </div>

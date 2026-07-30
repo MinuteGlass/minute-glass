@@ -18,9 +18,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 });
   }
 
+  // Si validation → crédite 2 jetons de bienvenue (une seule fois)
+  let updatePayload: Record<string, unknown> = { statut };
+  if (statut === "validé") {
+    const { data: current } = await supabaseAdmin
+      .from("profiles")
+      .select("tokens, welcome_tokens_granted")
+      .eq("id", userId)
+      .single();
+    if (current && !current.welcome_tokens_granted) {
+      updatePayload = { statut, tokens: (current.tokens ?? 0) + 2, welcome_tokens_granted: true };
+    }
+  }
+
   const { error } = await supabaseAdmin
     .from("profiles")
-    .update({ statut })
+    .update(updatePayload)
     .eq("id", userId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

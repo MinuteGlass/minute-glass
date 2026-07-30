@@ -681,10 +681,23 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
                 <div className="text-[12px] font-semibold" style={{ color: "#D85A30" }}>{selected.kbis_url ? "Fichier disponible · à vérifier" : "Aucun fichier fourni"}</div>
               </div>
               {selected.kbis_url && (
-                <a href={selected.kbis_url} target="_blank" rel="noopener noreferrer"
-                  className="ml-auto rounded-[9px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer flex-shrink-0 no-underline" style={{ background: "#D85A30", color: "#fff" }}>
+                <button
+                  className="ml-auto rounded-[9px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer flex-shrink-0"
+                  style={{ background: "#D85A30", color: "#fff" }}
+                  onClick={async () => {
+                    const adminToken = sessionStorage.getItem("mg_admin_token") ?? "";
+                    const res = await fetch("/api/admin/kbis-url", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "x-admin-token": adminToken },
+                      body: JSON.stringify({ path: selected.kbis_url }),
+                    });
+                    const { url, error } = await res.json();
+                    if (url) window.open(url, "_blank");
+                    else alert("Impossible d'accéder au fichier : " + (error ?? ""));
+                  }}
+                >
                   Télécharger
-                </a>
+                </button>
               )}
             </div>
             {selected.statut === "en attente" && (

@@ -519,7 +519,7 @@ export default function DeposerPage() {
                 <input type="checkbox" checked={cgu} onChange={(e) => setCgu(e.target.checked)}
                   className="mt-0.5 cursor-pointer" style={{ width: 17, height: 17, accentColor: "#1D9E75" }} />
                 <span className="text-[12.5px] leading-relaxed" style={{ color: "#3d4b44" }}>
-                  J'accepte les <b style={{ color: "#1D9E75" }}>conditions générales d'utilisation</b> et la politique de confidentialité.
+                  J'accepte les <a href="/cgu" target="_blank" rel="noopener noreferrer" style={{ color: "#1D9E75", fontWeight: 700, textDecoration: "underline" }}>conditions générales d'utilisation</a> et la <a href="/politique-confidentialite" target="_blank" rel="noopener noreferrer" style={{ color: "#1D9E75", fontWeight: 700, textDecoration: "underline" }}>politique de confidentialité</a>.
                   Mes coordonnées restent masquées jusqu'au déblocage par un réparateur (conforme RGPD).
                 </span>
               </label>
