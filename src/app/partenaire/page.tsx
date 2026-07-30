@@ -1620,9 +1620,53 @@ function PartnerSignupScreen({ onSubmit, onBack }: { onSubmit: () => void; onBac
     if (!canRegister) return;
     setSignupLoading(true);
     setSignupError("");
+
+    // 1. Créer le compte
     const { error } = await signUp(email, password, "partenaire", gerant);
+    if (error) { setSignupError(error); setSignupLoading(false); return; }
+
+    // 2. Récupérer la session pour avoir l'user ID et le token
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    const token  = session?.access_token;
+
+    if (userId) {
+      // 3. Uploader le KBIS dans Supabase Storage
+      let kbisUrl = "";
+      if (kbis) {
+        const ext  = kbis.name.split(".").pop() ?? "pdf";
+        const path = `${userId}/kbis.${ext}`;
+        const { data: uploadData } = await supabase.storage
+          .from("kbis-documents")
+          .upload(path, kbis, { upsert: true });
+        if (uploadData) {
+          const { data: urlData } = supabase.storage.from("kbis-documents").getPublicUrl(path);
+          kbisUrl = urlData?.publicUrl ?? "";
+        }
+      }
+
+      // 4. Compléter le profil avec toutes les infos
+      await supabase.from("profiles").update({
+        company:         nom,
+        siret:           siret.replace(/\s/g, ""),
+        phone:           tel.replace(/[\s.-]/g, ""),
+        city:            ville,
+        company_address: `${adresse}, ${codePostal} ${ville}`,
+        regions:         Array.from(selectedRegions),
+        kbis_url:        kbisUrl || null,
+        statut:          "en attente",
+      }).eq("id", userId);
+
+      // 5. Notifier l'admin par email
+      if (token) {
+        fetch("/api/notify/new-repairer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+      }
+    }
+
     setSignupLoading(false);
-    if (error) { setSignupError(error); return; }
     onSubmit();
   }
 

@@ -148,6 +148,13 @@ export default function DeposerPage() {
       photos:       photos.map((p) => p.dataUrl),
     });
 
+    // Notifie tous les réparateurs validés
+    fetch("/api/notify/new-demande", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, city: `${ville} (${cp})`, intervention: intervention ?? "remplacement", damage: description }),
+    }).catch(() => {});
+
     // Email de confirmation au client
     fetch("/api/email/send", {
       method: "POST",

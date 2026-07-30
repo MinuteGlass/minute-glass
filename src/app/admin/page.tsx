@@ -26,6 +26,7 @@ interface Partenaire {
   inscrit: string;
   jetons: number;
   statut: "validé" | "en attente" | "suspendu" | "refusé";
+  kbis_url?: string;
 }
 
 interface TokenTx {
@@ -564,9 +565,17 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
     return matchSearch && matchStatut;
   }), [partenaires, search, filterStatut]);
 
-  function updateStatut(id: string, statut: Partenaire["statut"]) {
+  async function updateStatut(id: string, statut: Partenaire["statut"]) {
+    // Optimistic update
     setPartenaires(prev => prev.map(p => p.id === id ? { ...p, statut } : p));
     setSelected(null);
+    // Persist in Supabase
+    const token = sessionStorage.getItem("mg_admin_token") ?? "";
+    await fetch("/api/admin/validate-repairer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": token },
+      body: JSON.stringify({ userId: id, statut }),
+    }).catch(() => {});
   }
 
   const statutStyle: Record<Partenaire["statut"], { bg: string; color: string; label: string }> = {
@@ -669,9 +678,14 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6Z" stroke="#D85A30" strokeWidth="1.8"/><path d="M14 2v6h6M12 11v6M9 14l3-3 3 3" stroke="#D85A30" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <div>
                 <div className="font-bold text-[13px]" style={{ color: "#B0431F" }}>Extrait Kbis joint</div>
-                <div className="text-[12px] font-semibold" style={{ color: "#D85A30" }}>kbis_{selected.id.toLowerCase()}.pdf · à vérifier</div>
+                <div className="text-[12px] font-semibold" style={{ color: "#D85A30" }}>{selected.kbis_url ? "Fichier disponible · à vérifier" : "Aucun fichier fourni"}</div>
               </div>
-              <button className="ml-auto rounded-[9px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer flex-shrink-0" style={{ background: "#D85A30", color: "#fff" }}>Télécharger</button>
+              {selected.kbis_url && (
+                <a href={selected.kbis_url} target="_blank" rel="noopener noreferrer"
+                  className="ml-auto rounded-[9px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer flex-shrink-0 no-underline" style={{ background: "#D85A30", color: "#fff" }}>
+                  Télécharger
+                </a>
+              )}
             </div>
             {selected.statut === "en attente" && (
               <div className="flex gap-3 mt-5">
@@ -894,6 +908,35 @@ export default function AdminPage() {
     const token = sessionStorage.getItem("mg_admin_token");
     if (token) setLoggedIn(true);
   }, []);
+
+  // Charge les vrais partenaires depuis Supabase quand connecté
+  useEffect(() => {
+    if (!loggedIn) return;
+    const token = sessionStorage.getItem("mg_admin_token") ?? "";
+    fetch("/api/admin/partenaires", { headers: { "x-admin-token": token } })
+      .then(r => r.json())
+      .then(({ partenaires: real }) => {
+        if (!real || real.length === 0) return;
+        const mapped: Partenaire[] = real.map((p: {
+          id: string; name: string; company: string; email: string;
+          regions: string[]; siret: string; created_at: string;
+          tokens: number; statut: string; kbis_url: string;
+        }) => ({
+          id: p.id,
+          societe: p.company ?? p.name,
+          gerant: p.name,
+          email: p.email,
+          region: (p.regions ?? []).slice(0, 2).join(", ") || "—",
+          siret: p.siret ?? "—",
+          inscrit: new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+          jetons: p.tokens ?? 0,
+          statut: (p.statut ?? "en attente") as Partenaire["statut"],
+          kbis_url: p.kbis_url ?? "",
+        }));
+        setPartenaires(mapped);
+      })
+      .catch(() => {});
+  }, [loggedIn]);
 
   const pendingCount = partenaires.filter(p => p.statut === "en attente").length;
 
