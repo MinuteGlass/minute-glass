@@ -45,7 +45,11 @@ function TokenModal({ onClose }: { onClose: () => void }) {
   async function handleBuy(packId: string) {
     setLoading(packId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        const refreshed = await supabase.auth.refreshSession();
+        session = refreshed.data.session;
+      }
       const token = session?.access_token;
       if (!token) {
         alert("Session expirée, veuillez vous reconnecter.");
