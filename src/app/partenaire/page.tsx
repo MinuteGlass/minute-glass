@@ -871,13 +871,50 @@ function FavorisView({ favs, unlocked, onToggleFav, demandes }: { favs: Set<stri
 }
 
 /* ─── Facturation view ─── */
-const HISTORIQUE = [
-  { id: "FAC-2026-0043", date: "12 juin 2026", pack: "Pack Pro",        jetons: 25, montant: "175,00 €", statut: "Payé" },
-  { id: "FAC-2026-0021", date: "3 mai 2026",   pack: "Pack Essentiel", jetons: 10, montant: "75,00 €",  statut: "Payé" },
-  { id: "FAC-2026-0008", date: "14 avr. 2026", pack: "Pack Starter",   jetons: 3,  montant: "24,00 €",  statut: "Payé" },
-];
+type Transaction = {
+  id: string;
+  invoice_number: string;
+  pack_name: string;
+  tokens: number;
+  amount_cents: number;
+  invoice_pdf_url: string | null;
+  status: string;
+  created_at: string;
+};
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatMontant(cents: number) {
+  return (cents / 100).toFixed(2).replace(".", ",") + " €";
+}
 
 function FacturationView({ tokens, onBuy }: { tokens: number; onBuy: () => void }) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      let token = session?.access_token;
+      if (!token) {
+        const { data } = await supabase.auth.refreshSession();
+        token = data.session?.access_token ?? undefined;
+      }
+      if (!token) { setLoading(false); return; }
+
+      const res = await fetch("/api/partenaire/transactions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { transactions: tx } = await res.json();
+        setTransactions(tx ?? []);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
   return (
     <div>
       <div className="mb-5">
@@ -897,43 +934,43 @@ function FacturationView({ tokens, onBuy }: { tokens: number; onBuy: () => void 
         </button>
       </div>
 
-      {/* Jauge */}
-      <div className="bg-white rounded-2xl px-5 py-4 mb-6" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="font-bold text-[14px]">Utilisation ce mois-ci</span>
-          <span className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>8 jetons consommés</span>
-        </div>
-        <div className="h-[9px] rounded-full overflow-hidden" style={{ background: "#EEF2F0" }}>
-          <div className="h-full rounded-full" style={{ width: "23%", background: "linear-gradient(90deg,#1D9E75,#0F5C44)" }} />
-        </div>
-        <div className="flex justify-between mt-2 text-[11.5px] font-semibold" style={{ color: "#9aa39e" }}>
-          <span>0</span><span>35 achetés</span>
-        </div>
-      </div>
-
       {/* Historique */}
       <h2 className="m-0 mb-3 text-[17px] font-extrabold">Historique des achats</h2>
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
         <div className="grid text-[11.5px] font-extrabold uppercase tracking-wider px-5 py-3" style={{ gridTemplateColumns: "1fr 1fr 80px 100px 80px 100px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
           <span>Référence</span><span>Pack</span><span>Jetons</span><span>Montant</span><span>Statut</span><span></span>
         </div>
-        {HISTORIQUE.map((h, i) => (
-          <div key={h.id} className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "1fr 1fr 80px 100px 80px 100px", borderBottom: i < HISTORIQUE.length - 1 ? "1px solid #EAEFED" : undefined }}>
-            <span className="text-[13px] font-bold">{h.id}</span>
+
+        {loading && (
+          <div className="px-5 py-8 text-center text-[13px] font-semibold" style={{ color: "#9aa39e" }}>Chargement…</div>
+        )}
+
+        {!loading && transactions.length === 0 && (
+          <div className="px-5 py-8 text-center text-[13px] font-semibold" style={{ color: "#9aa39e" }}>Aucun achat pour le moment.</div>
+        )}
+
+        {!loading && transactions.map((h, i) => (
+          <div key={h.id} className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "1fr 1fr 80px 100px 80px 100px", borderBottom: i < transactions.length - 1 ? "1px solid #EAEFED" : undefined }}>
+            <span className="text-[13px] font-bold">{h.invoice_number}</span>
             <span className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>
-              {h.pack}
-              <span className="ml-2 text-[11.5px]" style={{ color: "#9aa39e" }}>{h.date}</span>
+              {h.pack_name}
+              <span className="ml-2 text-[11.5px]" style={{ color: "#9aa39e" }}>{formatDate(h.created_at)}</span>
             </span>
-            <span className="font-extrabold text-[13px]" style={{ color: "#0F5C44" }}>+{h.jetons}</span>
-            <span className="font-bold text-[13px]">{h.montant}</span>
+            <span className="font-extrabold text-[13px]" style={{ color: "#0F5C44" }}>+{h.tokens}</span>
+            <span className="font-bold text-[13px]">{formatMontant(h.amount_cents)}</span>
             <span className="inline-flex items-center gap-1 text-[11.5px] font-bold rounded-full px-2.5 py-1 w-fit" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#0F5C44" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              {h.statut}
+              Payé
             </span>
-            <button className="inline-flex items-center gap-1.5 text-[12.5px] font-bold rounded-[9px] px-3 py-2 cursor-pointer border-0" style={{ background: "#F4F6F5", color: "#3d4b44" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M7 10l5 5 5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              PDF
-            </button>
+            {h.invoice_pdf_url ? (
+              <a href={h.invoice_pdf_url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[12.5px] font-bold rounded-[9px] px-3 py-2 no-underline" style={{ background: "#F4F6F5", color: "#3d4b44" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M7 10l5 5 5-5M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                PDF
+              </a>
+            ) : (
+              <span className="inline-flex items-center text-[12.5px] font-bold rounded-[9px] px-3 py-2" style={{ background: "#F4F6F5", color: "#c5cdc9" }}>PDF</span>
+            )}
           </div>
         ))}
       </div>

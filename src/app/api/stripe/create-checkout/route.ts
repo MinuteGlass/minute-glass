@@ -32,11 +32,20 @@ export async function POST(req: NextRequest) {
   const p = PACKS[pack as keyof typeof PACKS];
   if (!p) return NextResponse.json({ error: "Pack invalide" }, { status: 400 });
 
+  // Récupère l'email de l'utilisateur pour l'afficher sur la facture Stripe
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("email, name")
+    .eq("id", user.id)
+    .single();
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer_email: profile?.email ?? user.email ?? undefined,
       line_items: [{ price_data: { currency: "eur", product_data: { name: p.label }, unit_amount: p.prix }, quantity: 1 }],
-      metadata: { userId: user.id, pack, jetons: String(p.jetons) },
+      invoice_creation: { enabled: true },
+      metadata: { userId: user.id, pack, jetons: String(p.jetons), packLabel: p.label },
       success_url: `${req.nextUrl.origin}/partenaire?success=1&jetons=${p.jetons}`,
       cancel_url:  `${req.nextUrl.origin}/partenaire`,
     });
