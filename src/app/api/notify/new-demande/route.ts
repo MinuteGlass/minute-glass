@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "MinuteGlass <noreply@minuteglass.fr>",
+        from: "MinuteGlass <no-reply@minuteglass.fr>",
         to: [r.email],
         subject: `🔔 Nouvelle demande vitrage — ${city}`,
         html,
