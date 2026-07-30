@@ -9,6 +9,7 @@ import { ChatModal } from "@/components/ChatModal";
 import { DEMANDES } from "@/data/demandes";
 import { getLocalDemandes } from "@/lib/demandes-store";
 import { getAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import type { Demande } from "@/types";
 
 /* Seed partners that "unlocked" each demande — keyed by demande id */
@@ -135,9 +136,63 @@ function DamageIllustration({ intervention }: { intervention: string }) {
 }
 
 /* Partner unlock modal */
-function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClose: () => void; onUnlocked: () => void }) {
-  const router = useRouter();
+function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClose: () => void; onUnlocked: (newBalance: number) => void }) {
   const tokenCost = calcTokenCost(demande.intervention, demande.insurance);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleConfirm() {
+    setLoading(true);
+    setError("");
+
+    // Récupère le token JWT
+    let accessToken: string | undefined;
+    const { data: { session } } = await supabase.auth.getSession();
+    accessToken = session?.access_token;
+    if (!accessToken) {
+      const { data } = await supabase.auth.refreshSession();
+      accessToken = data.session?.access_token ?? undefined;
+    }
+    if (!accessToken) {
+      setError("Session expirée, veuillez vous reconnecter.");
+      setLoading(false);
+      return;
+    }
+
+    const res = await fetch("/api/partenaire/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ demandeId: demande.id, cost: tokenCost }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (res.status === 402) {
+        setError(`Solde insuffisant — il vous reste ${data.tokens} jeton${data.tokens > 1 ? "s" : ""}.`);
+      } else if (res.status === 403) {
+        setError(data.error ?? "Compte non autorisé.");
+      } else {
+        setError(data.error ?? "Une erreur est survenue.");
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Mise à jour du cache local des jetons
+    const cached = localStorage.getItem("mg_auth");
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        parsed.tokens = data.tokens;
+        localStorage.setItem("mg_auth", JSON.stringify(parsed));
+        window.dispatchEvent(new Event("mg_auth_change"));
+      } catch {}
+    }
+
+    onUnlocked(data.tokens);
+    onClose();
+  }
 
   return (
     <div
@@ -175,16 +230,24 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
           </div>
         </div>
 
+        {error && (
+          <div className="rounded-[11px] px-4 py-3 mb-4 text-[13px] font-semibold" style={{ background: "#FCEDE7", color: "#B0431F" }}>
+            {error}
+          </div>
+        )}
+
         <button
-          onClick={() => { onUnlocked(); onClose(); }}
-          className="w-full py-3.5 rounded-[11px] font-bold text-[15px] text-white border-0 cursor-pointer transition-opacity hover:opacity-90"
+          onClick={handleConfirm}
+          disabled={loading}
+          className="w-full py-3.5 rounded-[11px] font-bold text-[15px] text-white border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ background: "#1D9E75", boxShadow: "0 4px 14px rgba(29,158,117,.35)" }}
         >
-          Confirmer — {tokenCost} jeton{tokenCost > 1 ? "s" : ""}
+          {loading ? "Traitement…" : `Confirmer — ${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
         </button>
         <button
           onClick={onClose}
-          className="w-full mt-3 py-2.5 bg-transparent border-0 font-bold text-[13.5px] cursor-pointer"
+          disabled={loading}
+          className="w-full mt-3 py-2.5 bg-transparent border-0 font-bold text-[13.5px] cursor-pointer disabled:opacity-50"
           style={{ color: "#6B7280" }}
         >
           Annuler
@@ -292,7 +355,14 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
         <UnlockModal
           demande={demande}
           onClose={() => setShowUnlock(false)}
-          onUnlocked={() => setUnlocked(true)}
+          onUnlocked={(newBalance) => {
+            setUnlocked(true);
+            // Persiste aussi en localStorage pour la session en cours
+            const stored = JSON.parse(localStorage.getItem("mg_unlocked") ?? "[]") as string[];
+            if (!stored.includes(demande.id)) {
+              localStorage.setItem("mg_unlocked", JSON.stringify([...stored, demande.id]));
+            }
+          }}
         />
       )}
       {showPartnerModal && <PartnerModal onClose={() => setShowPartnerModal(false)} />}
