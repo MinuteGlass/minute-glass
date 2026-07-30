@@ -10,6 +10,7 @@ import { signIn, signUp, setAuth as setGlobalAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/Toast";
 import { ChatModal } from "@/components/ChatModal";
+import { PACKS, formatPrice, pricePerToken } from "@/lib/packs";
 import type { Demande } from "@/types";
 
 /* ─── Types ─── */
@@ -32,12 +33,6 @@ const INTERVENTION_LABELS: Record<string, { label: string; bg: string; color: st
 
 
 /* ─── Token Modal ─── */
-const PACKS = [
-  { name: "1 jeton",   packId: "solo",      tokens: 1,  price: 10,  highlight: false, badge: "🎯" },
-  { name: "Starter",   packId: "starter",   tokens: 3,  price: 24,  highlight: false, badge: "🚀" },
-  { name: "Essentiel", packId: "essentiel", tokens: 10, price: 75,  highlight: false, badge: "⭐" },
-  { name: "Pro",       packId: "pro",       tokens: 25, price: 175, highlight: true,  badge: "💎" },
-];
 
 function TokenModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -60,10 +55,10 @@ function TokenModal({ onClose }: { onClose: () => void }) {
             const res = await fetch("/api/stripe/create-checkout", {
               method: "POST",
               headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-              body: JSON.stringify({ pack: pack.packId }),
+              body: JSON.stringify({ pack: pack.id }),
             });
             const data = await res.json();
-            if (data.url) checkoutUrls.current[pack.packId] = data.url;
+            if (data.url) checkoutUrls.current[pack.id] = data.url;
           } catch { /* silencieux — fallback au clic */ }
         })
       );
@@ -72,12 +67,10 @@ function TokenModal({ onClose }: { onClose: () => void }) {
 
   async function handleBuy(packId: string) {
     setLoading(packId);
-    // URL déjà prête → redirection instantanée
     if (checkoutUrls.current[packId]) {
       window.location.href = checkoutUrls.current[packId];
       return;
     }
-    // Fallback si la pré-création a échoué
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -109,7 +102,7 @@ function TokenModal({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {PACKS.map((p) => (
             <div
-              key={p.name}
+              key={p.id}
               className="rounded-[16px] p-4 flex flex-col gap-2 relative"
               style={p.highlight
                 ? { background: "linear-gradient(150deg,#0F5C44,#1D9E75)", color: "#fff", boxShadow: "0 8px 24px rgba(15,92,68,.28)" }
@@ -119,16 +112,16 @@ function TokenModal({ onClose }: { onClose: () => void }) {
               <div className="font-extrabold text-[14px]">{p.badge} {p.name}</div>
               <div className="font-extrabold text-[28px] tracking-tight leading-none">
                 {p.tokens}
-                <span className={`text-[14px] font-semibold ml-1 ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>jetons</span>
+                <span className={`text-[14px] font-semibold ml-1 ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>jeton{p.tokens > 1 ? "s" : ""}</span>
               </div>
               <div className="text-[22px] font-extrabold mt-1" style={!p.highlight ? { color: "#0F5C44" } : {}}>
-                {p.price} €
+                {formatPrice(p.priceCents)} €
               </div>
               <div className={`text-[11px] font-semibold ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>
-                {(p.price / p.tokens).toFixed(2).replace(".", ",")} €/jeton · sans expiration
+                {pricePerToken(p)} €/jeton · sans expiration
               </div>
               <button
-                onClick={() => handleBuy(p.packId)}
+                onClick={() => handleBuy(p.id)}
                 disabled={loading !== null}
                 className="mt-2 w-full py-2.5 rounded-[10px] font-bold text-[13.5px] border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60"
                 style={p.highlight
@@ -136,7 +129,7 @@ function TokenModal({ onClose }: { onClose: () => void }) {
                   : { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
                 }
               >
-                {loading === p.packId ? "…" : "Choisir"}
+                {loading === p.id ? "…" : "Choisir"}
               </button>
             </div>
           ))}

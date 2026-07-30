@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { PACKS } from "@/lib/packs";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const supabaseAdmin = createClient(
@@ -8,15 +9,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PACKS = {
-  solo:      { jetons: 1,  prix: 1000,  label: "1 jeton" },
-  starter:   { jetons: 3,  prix: 2400,  label: "Pack Starter — 3 jetons" },
-  essentiel: { jetons: 10, prix: 7500,  label: "Pack Essentiel — 10 jetons" },
-  pro:       { jetons: 25, prix: 17500, label: "Pack Pro — 25 jetons" },
-};
-
 export async function POST(req: NextRequest) {
-  // Vérifie la session Supabase depuis le header Authorization
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "").trim();
   if (!token) {
@@ -28,25 +21,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Session invalide" }, { status: 401 });
   }
 
-  const { pack } = await req.json();
-  const p = PACKS[pack as keyof typeof PACKS];
+  const { pack: packId } = await req.json();
+  const p = PACKS.find((x) => x.id === packId);
   if (!p) return NextResponse.json({ error: "Pack invalide" }, { status: 400 });
 
-  // Récupère l'email de l'utilisateur pour l'afficher sur la facture Stripe
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("email, name")
     .eq("id", user.id)
     .single();
 
+  const label = `Pack ${p.name} — ${p.tokens} jeton${p.tokens > 1 ? "s" : ""}`;
+
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: profile?.email ?? user.email ?? undefined,
-      line_items: [{ price_data: { currency: "eur", product_data: { name: p.label }, unit_amount: p.prix }, quantity: 1 }],
+      line_items: [{ price_data: { currency: "eur", product_data: { name: label }, unit_amount: p.priceCents }, quantity: 1 }],
       invoice_creation: { enabled: true },
-      metadata: { userId: user.id, pack, jetons: String(p.jetons), packLabel: p.label },
-      success_url: `${req.nextUrl.origin}/partenaire?success=1&jetons=${p.jetons}`,
+      metadata: { userId: user.id, pack: p.id, jetons: String(p.tokens), packLabel: label },
+      success_url: `${req.nextUrl.origin}/partenaire?success=1&jetons=${p.tokens}`,
       cancel_url:  `${req.nextUrl.origin}/partenaire`,
     });
     return NextResponse.json({ url: session.url });
