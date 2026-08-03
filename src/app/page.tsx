@@ -179,13 +179,13 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="w-full" style={{ background: "#071e12" }}>
+      <section className="relative w-full" style={{ background: "#071e12" }}>
         <img
           src="/hero.webp"
           alt="Technicien remplaçant un pare-brise à domicile"
           className="w-full block"
         />
-        <div className="px-5 py-5 flex flex-col sm:flex-row gap-3">
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-5 flex flex-col sm:flex-row gap-3" style={{ background: "linear-gradient(to top, rgba(7,30,18,0.9) 0%, transparent 100%)", paddingTop: "60px" }}>
           <Link
             href="/deposer"
             className="flex-1 flex items-center justify-center gap-2 rounded-[16px] py-4 font-extrabold text-[17px] no-underline text-center"
