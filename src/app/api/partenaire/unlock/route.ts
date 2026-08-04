@@ -45,6 +45,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Solde insuffisant", tokens: profile.tokens }, { status: 402 });
   }
 
+  // Vérifie si la demande est déjà attribuée à un autre réparateur
+  const { data: demandeMeta } = await supabaseAdmin
+    .from("demandes")
+    .select("status, booked_by")
+    .eq("id", demandeId)
+    .single();
+
+  if (demandeMeta?.status === "booked" && demandeMeta?.booked_by !== user.id) {
+    return NextResponse.json({ error: "Cette demande a déjà été attribuée à un autre réparateur.", booked: true }, { status: 409 });
+  }
+
   // Vérifie si déjà débloqué (idempotent)
   const { data: existing } = await supabaseAdmin
     .from("unlocks")

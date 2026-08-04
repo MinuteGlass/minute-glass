@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { Demande } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 function nowTime() {
   return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -89,7 +90,19 @@ export function ChatModal({
           : "Désolé, ce créneau ne me convient pas. Avez-vous une autre disponibilité ?",
         time: nowTime(),
       }]);
-      if (accepted) onAttributed?.(demande.id);
+      if (accepted) {
+        onAttributed?.(demande.id);
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+          const token = session?.access_token;
+          if (token) {
+            await fetch("/api/partenaire/book", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ demandeId: demande.id }),
+            });
+          }
+        });
+      }
     }, 2000);
   }
 
@@ -118,7 +131,19 @@ export function ChatModal({
           time: nowTime(),
         },
       ]);
-      if (accepted) onAttributed?.(demande.id);
+      if (accepted) {
+        onAttributed?.(demande.id);
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+          const token = session?.access_token;
+          if (token) {
+            await fetch("/api/partenaire/book", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ demandeId: demande.id }),
+            });
+          }
+        });
+      }
     }, 2200);
   }
 

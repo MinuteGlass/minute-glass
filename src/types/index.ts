@@ -12,6 +12,7 @@ export interface Demande {
   damage: string;
   isNew?: boolean;
   isUnlocked?: boolean;
+  status?: "active" | "booked";
   phone?: string;
   email?: string;
   /* enriched */

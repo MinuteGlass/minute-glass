@@ -119,11 +119,13 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
           </span>
 
           {demande.isNew && (
-            <span
-              className="rounded-[7px] px-[9px] py-1 text-xs font-bold"
-              style={{ background: "#FDE8E8", color: "#D8302F" }}
-            >
+            <span className="rounded-[7px] px-[9px] py-1 text-xs font-bold" style={{ background: "#FDE8E8", color: "#D8302F" }}>
               Nouveau
+            </span>
+          )}
+          {demande.status === "booked" && (
+            <span className="rounded-[7px] px-[9px] py-1 text-xs font-bold" style={{ background: "#F4F6F5", color: "#6B7280" }}>
+              🔒 Déjà attribué
             </span>
           )}
         </div>
@@ -215,6 +217,10 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
             {isParticulier ? (
               <span className="text-[12px] font-semibold rounded-[9px] px-3 py-2" style={{ background: "#F4F6F5", color: "#9aa39e" }}>
                 Réservé aux réparateurs
+              </span>
+            ) : demande.status === "booked" && !unlocked ? (
+              <span className="text-[12px] font-semibold rounded-[9px] px-3 py-2" style={{ background: "#F4F6F5", color: "#9aa39e" }}>
+                🔒 Déjà attribué
               </span>
             ) : (
               <button

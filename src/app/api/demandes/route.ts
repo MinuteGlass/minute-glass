@@ -9,8 +9,8 @@ const supabaseAdmin = createClient(
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("demandes")
-    .select("id, title, city, intervention, insurance, damage, availability, created_at")
-    .eq("status", "active")
+    .select("id, title, city, intervention, insurance, damage, availability, status, created_at")
+    .in("status", ["active", "booked"])
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ demandes: [] });
@@ -32,6 +32,7 @@ export async function GET() {
       damage:       d.damage,
       availability: d.availability ?? "À définir",
       isNew:        diffH < 24,
+      status:       d.status,
       // Coordonnées jamais exposées publiquement
       phone:        "●●● ●●● ●●●●",
       email:        "●●●●●@●●●●●.●●●",
