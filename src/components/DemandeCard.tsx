@@ -19,6 +19,13 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
       return stored ? (JSON.parse(stored) as string[]).includes(demande.id) : (demande.isUnlocked ?? false);
     } catch { return demande.isUnlocked ?? false; }
   });
+  const [contacts, setContacts] = useState<{ phone: string; email: string } | null>(() => {
+    try {
+      const stored = localStorage.getItem("mg_contacts");
+      const all = stored ? JSON.parse(stored) : {};
+      return all[demande.id] ?? null;
+    } catch { return null; }
+  });
   const [showModal, setShowModal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -49,6 +56,11 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
     setUnlocked(true);
     setJustUnlocked(true);
     setTimeout(() => setJustUnlocked(false), 4000);
+    try {
+      const stored = localStorage.getItem("mg_contacts");
+      const all = stored ? JSON.parse(stored) : {};
+      if (all[demande.id]) setContacts(all[demande.id]);
+    } catch {}
   }
 
   return (
@@ -168,7 +180,7 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
                   Téléphone
                 </span>
                 <span className="font-bold text-[13.5px]" style={{ color: "#0F5C44" }}>
-                  {demande.phone ?? "06 84 21 55 09"}
+                  {contacts?.phone ?? demande.phone ?? "—"}
                 </span>
               </span>
               <span className="flex flex-col gap-0.5">
@@ -176,7 +188,7 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
                   Email
                 </span>
                 <span className="font-bold text-[13.5px]" style={{ color: "#0F5C44" }}>
-                  {demande.email ?? "contact@email.com"}
+                  {contacts?.email ?? demande.email ?? "—"}
                 </span>
               </span>
             </div>
