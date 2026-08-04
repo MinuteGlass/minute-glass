@@ -2019,8 +2019,9 @@ export default function PartenairePage() {
   }, []);
   const [demandes, setDemandes] = useState<Demande[]>([]);
 
-  // Charge les vraies demandes depuis Supabase
+  // Charge les vraies demandes depuis Supabase (re-déclenché après login)
   useEffect(() => {
+    if (auth !== "dashboard") return;
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       let token = session?.access_token;
       if (!token) {
@@ -2054,7 +2055,7 @@ export default function PartenairePage() {
         }
       } catch {}
     });
-  }, []);
+  }, [auth]); // re-runs when auth changes to "dashboard" after login
 
   const DEMANDES = demandes;
 
