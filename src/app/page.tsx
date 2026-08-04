@@ -5,8 +5,6 @@ import { Navbar } from "@/components/Navbar";
 import { FiltersPanel, type FiltersState } from "@/components/FiltersPanel";
 import { DemandeCard } from "@/components/DemandeCard";
 import { AdBannerPartner, AdSidebarTop, AdSidebarPromo, AdSidebarBottom } from "@/components/AdBanner";
-import { DEMANDES } from "@/data/demandes";
-import { getLocalDemandes, onDemandesChange } from "@/lib/demandes-store";
 import { getAuth, onAuthChange } from "@/lib/auth";
 import type { Demande } from "@/types";
 
@@ -26,15 +24,15 @@ export default function ListingPage() {
   const [filters, setFilters] = useState<FiltersState>(INITIAL_FILTERS);
   const [sort, setSort] = useState("proche");
   const [page, setPage] = useState(1);
-  const [localDemandes, setLocalDemandes] = useState<Demande[]>([]);
+  const [allDemandes, setAllDemandes] = useState<Demande[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isPartner, setIsPartner] = useState(false);
   const [isParticulier, setIsParticulier] = useState(false);
 
-  /* sync local demandes */
   useEffect(() => {
-    setLocalDemandes(getLocalDemandes());
-    return onDemandesChange(() => setLocalDemandes(getLocalDemandes()));
+    fetch("/api/demandes").then(r => r.json()).then(({ demandes }) => {
+      if (Array.isArray(demandes)) setAllDemandes(demandes);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -46,8 +44,6 @@ export default function ListingPage() {
     update();
     return onAuthChange(update);
   }, []);
-
-  const allDemandes = useMemo(() => [...localDemandes, ...DEMANDES], [localDemandes]);
 
   const filtered = useMemo(() => {
     return allDemandes.filter((d) => {

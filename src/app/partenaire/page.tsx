@@ -4,8 +4,6 @@ import { useState, useRef, useEffect } from "react";
 import { tokenCost } from "@/lib/token-cost";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
-import { DEMANDES as SEED_DEMANDES } from "@/data/demandes";
-import { getLocalDemandes, onDemandesChange } from "@/lib/demandes-store";
 import { signIn, signUp, setAuth as setGlobalAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/Toast";
@@ -2019,7 +2017,7 @@ export default function PartenairePage() {
     } catch {}
     setAuth("choice");
   }, []);
-  const [demandes, setDemandes] = useState<typeof SEED_DEMANDES>(SEED_DEMANDES);
+  const [demandes, setDemandes] = useState<Demande[]>([]);
 
   // Charge les vraies demandes depuis Supabase
   useEffect(() => {

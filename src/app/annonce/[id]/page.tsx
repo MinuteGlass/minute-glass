@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { ChatModal } from "@/components/ChatModal";
-import { DEMANDES } from "@/data/demandes";
-import { getLocalDemandes } from "@/lib/demandes-store";
 import { getAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import type { Demande } from "@/types";
@@ -327,28 +325,26 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
   const auth = typeof window !== "undefined" ? getAuth() : null;
 
   useEffect(() => {
-    const all = [...getLocalDemandes(), ...DEMANDES];
-    const found = all.find((d) => d.id === id);
-    if (!found) { router.replace("/"); return; }
-    setDemande(found);
-    try {
-      const stored = localStorage.getItem("mg_unlocked");
-      const ids: string[] = stored ? JSON.parse(stored) : [];
-      const isUnlocked = ids.includes(found.id) || (found.isUnlocked ?? false);
-      setUnlocked(isUnlocked);
-      if (isUnlocked) {
-        try {
-          const mgContacts = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
-          if (mgContacts[found.id]) setContacts(mgContacts[found.id]);
-        } catch {}
-      }
-
-      const counts: Record<string, number> = JSON.parse(localStorage.getItem("mg_unlock_counts") ?? "{}");
-      const attributed: string[] = JSON.parse(localStorage.getItem("mg_attributed") ?? "[]");
-      setIsBlocked((counts[found.id] ?? 0) >= 4 || attributed.includes(found.id));
-    } catch {
-      setUnlocked(found.isUnlocked ?? false);
-    }
+    fetch(`/api/demandes`).then(r => r.json()).then(({ demandes }) => {
+      const found = (demandes ?? []).find((d: Demande) => d.id === id);
+      if (!found) { router.replace("/"); return; }
+      setDemande(found);
+      try {
+        const stored = localStorage.getItem("mg_unlocked");
+        const ids: string[] = stored ? JSON.parse(stored) : [];
+        const isUnlocked = ids.includes(found.id) || (found.isUnlocked ?? false);
+        setUnlocked(isUnlocked);
+        if (isUnlocked) {
+          try {
+            const mgContacts = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+            if (mgContacts[found.id]) setContacts(mgContacts[found.id]);
+          } catch {}
+        }
+        const counts: Record<string, number> = JSON.parse(localStorage.getItem("mg_unlock_counts") ?? "{}");
+        const attributed: string[] = JSON.parse(localStorage.getItem("mg_attributed") ?? "[]");
+        setIsBlocked((counts[found.id] ?? 0) >= 4 || attributed.includes(found.id));
+      } catch {}
+    }).catch(() => router.replace("/"));
   }, [id, router]);
 
   if (!demande) return null;
