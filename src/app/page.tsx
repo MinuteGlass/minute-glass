@@ -6,6 +6,7 @@ import { FiltersPanel, type FiltersState } from "@/components/FiltersPanel";
 import { DemandeCard } from "@/components/DemandeCard";
 import { AdBannerPartner, AdSidebarTop, AdSidebarPromo, AdSidebarBottom } from "@/components/AdBanner";
 import { getAuth, onAuthChange } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import type { Demande } from "@/types";
 
 const INITIAL_FILTERS: FiltersState = {
@@ -28,6 +29,7 @@ export default function ListingPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [isPartner, setIsPartner] = useState(false);
   const [isParticulier, setIsParticulier] = useState(false);
+  const [partnerContacts, setPartnerContacts] = useState<Record<string, { phone: string; email: string }>>({});
 
   useEffect(() => {
     fetch("/api/demandes").then(r => r.json()).then(({ demandes }) => {
@@ -36,10 +38,27 @@ export default function ListingPage() {
   }, []);
 
   useEffect(() => {
-    const update = () => {
+    const update = async () => {
       const auth = getAuth();
-      setIsPartner(auth?.role === "partenaire");
+      const isP = auth?.role === "partenaire";
+      setIsPartner(isP);
       setIsParticulier(auth?.role === "particulier");
+
+      // Si réparateur connecté, charge les vraies coordonnées des fiches débloquées
+      if (isP) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+        fetch("/api/partenaire/demandes", { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json())
+          .then(({ demandes: pd }) => {
+            if (!Array.isArray(pd)) return;
+            const contacts: Record<string, { phone: string; email: string }> = {};
+            pd.filter((d: Demande) => d.isUnlocked && d.phone && !d.phone.includes("●"))
+              .forEach((d: Demande) => { contacts[d.id] = { phone: d.phone!, email: d.email ?? "" }; });
+            setPartnerContacts(contacts);
+          }).catch(() => {});
+      }
     };
     update();
     return onAuthChange(update);
@@ -136,7 +155,7 @@ export default function ListingPage() {
             ) : (
               paginated.map((d, i) => (
                 <div key={d.id}>
-                  <DemandeCard demande={d} isPartner={isPartner} isParticulier={isParticulier} />
+                  <DemandeCard demande={d} isPartner={isPartner} isParticulier={isParticulier} contactsOverride={partnerContacts[d.id] ?? null} />
                   {(i + 1) % AD_EVERY === 0 && i !== paginated.length - 1 && (
                     <div className="mt-3.5">
                       <AdBannerPartner />
