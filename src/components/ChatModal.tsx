@@ -16,7 +16,8 @@ const CLIENT_REPLIES = [
 
 type ChatMsg =
   | { id: number; kind: "text"; from: "partner" | "client"; text: string; time: string }
-  | { id: number; kind: "devis"; prix: string; note: string; time: string; status: "pending" | "accepted" | "refused" };
+  | { id: number; kind: "devis"; prix: string; note: string; time: string; status: "pending" | "accepted" | "refused" }
+  | { id: number; kind: "rdv"; date: string; time: string; status: "pending" | "accepted" | "refused" };
 
 export function ChatModal({
   demande,
@@ -38,6 +39,9 @@ export function ChatModal({
   const [showDevis, setShowDevis] = useState(false);
   const [devisPrix, setDevisPrix] = useState("");
   const [devisNote, setDevisNote] = useState("");
+  const [showRdv, setShowRdv] = useState(false);
+  const [rdvDate, setRdvDate] = useState("");
+  const [rdvHeure, setRdvHeure] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
@@ -63,6 +67,30 @@ export function ChatModal({
     setMessages((prev) => [...prev, { id: Date.now(), kind: "text", from: "partner", text, time: nowTime() }]);
     setInput("");
     triggerClientReply();
+  }
+
+  function sendRdv() {
+    if (!rdvDate) return;
+    const rdvId = Date.now();
+    const label = rdvDate + (rdvHeure ? ` à ${rdvHeure}` : "");
+    setMessages((prev) => [...prev, { id: rdvId, kind: "rdv", date: label, time: nowTime(), status: "pending" }]);
+    setRdvDate(""); setRdvHeure(""); setShowRdv(false);
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      const accepted = Math.random() > 0.2;
+      setMessages((prev) =>
+        prev.map((m) => m.id === rdvId && m.kind === "rdv" ? { ...m, status: accepted ? "accepted" : "refused" } : m)
+      );
+      setMessages((prev) => [...prev, {
+        id: Date.now() + 2, kind: "text", from: "client",
+        text: accepted
+          ? "Parfait, j'accepte le rendez-vous ! À très bientôt."
+          : "Désolé, ce créneau ne me convient pas. Avez-vous une autre disponibilité ?",
+        time: nowTime(),
+      }]);
+      if (accepted) onAttributed?.(demande.id);
+    }, 2000);
   }
 
   function sendDevis() {
@@ -136,6 +164,35 @@ export function ChatModal({
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
           {messages.map((msg) => {
+            if (msg.kind === "rdv") {
+              return (
+                <div key={msg.id} className="flex justify-end">
+                  <div className="max-w-[85%] flex flex-col gap-1 items-end">
+                    <div className="w-full rounded-[14px] overflow-hidden" style={{
+                      border: msg.status === "accepted" ? "1.5px solid #1D9E75" : msg.status === "refused" ? "1.5px solid #D85A30" : "1.5px solid #EAEFED",
+                      borderBottomRightRadius: 4,
+                    }}>
+                      <div className="px-4 py-2.5 flex items-center gap-2" style={{
+                        background: msg.status === "accepted" ? "#E8F6F0" : msg.status === "refused" ? "#FCEDE7" : "#F4F6F5",
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke={msg.status === "accepted" ? "#0F5C44" : msg.status === "refused" ? "#B0431F" : "#6B7280"} strokeWidth="1.8"/><path d="M16 2v4M8 2v4M3 10h18" stroke={msg.status === "accepted" ? "#0F5C44" : msg.status === "refused" ? "#B0431F" : "#6B7280"} strokeWidth="1.8" strokeLinecap="round"/></svg>
+                        <span className="font-extrabold text-[12.5px]" style={{ color: msg.status === "accepted" ? "#0F5C44" : msg.status === "refused" ? "#B0431F" : "#3d4b44" }}>
+                          {msg.status === "accepted" ? "✓ RDV accepté" : msg.status === "refused" ? "✗ RDV refusé" : "Proposition de RDV"}
+                        </span>
+                        <span className="ml-auto text-[11px] font-semibold" style={{ color: "#9aa39e" }}>{msg.time}</span>
+                      </div>
+                      <div className="px-4 py-3 bg-white">
+                        <div className="text-[16px] font-extrabold" style={{ color: "#11211B" }}>📅 {msg.date}</div>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-semibold" style={{ color: "#9aa39e" }}>
+                      {msg.status === "pending" ? "En attente de confirmation du client…" : ""}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
             if (msg.kind === "devis") {
               return (
                 <div key={msg.id} className="flex justify-end">
@@ -214,6 +271,49 @@ export function ChatModal({
           <div ref={bottomRef} />
         </div>
 
+        {/* RDV form */}
+        {showRdv && (
+          <div className="flex-shrink-0 px-4 pt-3 pb-2 animate-mgFade" style={{ borderTop: "2px solid #1D9E75", background: "#F6FBF9" }}>
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="font-extrabold text-[13.5px]" style={{ color: "#0F5C44" }}>
+                📅 Proposer un RDV
+              </span>
+              <button onClick={() => setShowRdv(false)} className="text-[18px] border-0 bg-transparent cursor-pointer" style={{ color: "#9aa39e" }}>✕</button>
+            </div>
+            <div className="flex gap-2 mb-3">
+              <div className="flex-1">
+                <label className="block text-[11.5px] font-bold mb-1" style={{ color: "#6B7280" }}>Date *</label>
+                <input
+                  type="date"
+                  value={rdvDate}
+                  onChange={(e) => setRdvDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full rounded-[10px] px-3 py-2.5 text-[14px] font-bold outline-none bg-white"
+                  style={{ border: "1.5px solid #1D9E75", color: "#11211B" }}
+                />
+              </div>
+              <div className="w-[110px]">
+                <label className="block text-[11.5px] font-bold mb-1" style={{ color: "#6B7280" }}>Heure</label>
+                <input
+                  type="time"
+                  value={rdvHeure}
+                  onChange={(e) => setRdvHeure(e.target.value)}
+                  className="w-full rounded-[10px] px-3 py-2.5 text-[14px] font-bold outline-none bg-white"
+                  style={{ border: "1.5px solid #EAEFED", color: "#11211B" }}
+                />
+              </div>
+            </div>
+            <button
+              onClick={sendRdv}
+              disabled={!rdvDate}
+              className="w-full py-2.5 rounded-[10px] font-bold text-[13.5px] text-white border-0 cursor-pointer disabled:opacity-40 transition-opacity hover:opacity-90"
+              style={{ background: "#1D9E75", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }}
+            >
+              Envoyer la proposition au client
+            </button>
+          </div>
+        )}
+
         {/* Devis form */}
         {showDevis && (
           <div className="flex-shrink-0 px-4 pt-3 pb-2 animate-mgFade" style={{ borderTop: "2px solid #1D9E75", background: "#F6FBF9" }}>
@@ -273,9 +373,9 @@ export function ChatModal({
               </span>
             </div>
           </div>
-        ) : !showDevis && (
+        ) : !showDevis && !showRdv && (
           <div className="px-4 pt-2.5 pb-3 flex-shrink-0" style={{ borderTop: "1px solid #EAEFED" }}>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <button
                 onClick={() => setShowDevis(true)}
                 className="inline-flex items-center gap-1.5 rounded-[9px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer whitespace-nowrap hover:opacity-90 transition-opacity flex-shrink-0"
@@ -287,6 +387,15 @@ export function ChatModal({
                 </svg>
                 Envoyer un devis
               </button>
+              {demande.intervention === "remplacement" && demande.insurance === "avec" && (
+                <button
+                  onClick={() => setShowRdv(true)}
+                  className="inline-flex items-center gap-1.5 rounded-[9px] px-3 py-2 font-bold text-[12.5px] border-0 cursor-pointer whitespace-nowrap hover:opacity-90 transition-opacity flex-shrink-0"
+                  style={{ background: "#EEF2FF", color: "#3B49DF" }}
+                >
+                  📅 Proposer un RDV
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2 rounded-[13px] px-3.5 py-2" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
               <input
