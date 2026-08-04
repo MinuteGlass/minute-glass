@@ -152,7 +152,7 @@ export default function DeposerPage() {
     fetch("/api/notify/new-demande", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, city: `${ville} (${cp})`, intervention: intervention ?? "remplacement", damage: description }),
+      body: JSON.stringify({ title, city: `${ville} (${cp})`, intervention: intervention ?? "remplacement", damage: description, insurance: insurance === "oui" ? "avec" : "sans" }),
     }).catch(() => {});
 
     // Email de confirmation au client

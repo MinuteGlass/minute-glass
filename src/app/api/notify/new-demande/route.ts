@@ -6,8 +6,14 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+function tokenCost(intervention: string, insurance: string): number {
+  if (intervention === "reparation" || intervention === "vitre") return 1;
+  return insurance === "avec" ? 3 : 2;
+}
+
 export async function POST(req: NextRequest) {
-  const { title, city, intervention, damage } = await req.json();
+  const { title, city, intervention, damage, insurance } = await req.json();
+  const cost = tokenCost(intervention, insurance ?? "sans");
 
   // Récupère tous les réparateurs validés
   const { data: repairers } = await supabaseAdmin
@@ -66,7 +72,7 @@ export async function POST(req: NextRequest) {
               </td></tr>
             </table>
             <p style="margin:20px 0 0;font-size:12.5px;color:#9aa39e;text-align:center;">
-              1 jeton sera débité uniquement si vous décidez de débloquer les coordonnées du client.
+              ${cost} jeton${cost > 1 ? "s" : ""} seront débités uniquement si vous décidez de débloquer les coordonnées du client.
             </p>
           </td>
         </tr>
