@@ -38,60 +38,7 @@ interface MyRequest {
   reviewText?: string;
 }
 
-/* ─── Seed data ─── */
-const SEED: MyRequest[] = [
-  {
-    id: "1",
-    title: "Peugeot 308 · 2019",
-    intervention: "Remplacement pare-brise",
-    city: "Lyon 69007",
-    status: "active",
-    threads: [
-      {
-        id: "t1",
-        initials: "VP",
-        garage: "Vitro Pro Lyon",
-        profileId: "vitro-pro-lyon",
-        lastMsg: "Bonjour, je suis disponible dès demain matin pour intervenir.",
-        offer: { label: "Intervention à 280 €", status: "pending" },
-      },
-      {
-        id: "t2",
-        initials: "AG",
-        garage: "AutoGlass Rhône",
-        profileId: "vitro-pro-lyon",
-        lastMsg: "Bonjour ! Je peux vous proposer un devis rapidement.",
-      },
-    ],
-  },
-  {
-    id: "2",
-    title: "Renault Clio V · 2021",
-    intervention: "Réparation d'impact",
-    city: "Villeurbanne",
-    status: "aboutie",
-    acceptedGarage: "Vitro Pro Lyon",
-    threads: [
-      {
-        id: "t3",
-        initials: "VP",
-        garage: "Vitro Pro Lyon",
-        profileId: "vitro-pro-lyon",
-        lastMsg: "Intervention effectuée. Merci pour votre confiance !",
-        offer: { label: "Intervention à 75 €", status: "accepted" },
-      },
-    ],
-    reviewPending: true,
-  },
-  {
-    id: "3",
-    title: "Citroën C3 · 2020",
-    intervention: "Vitre latérale",
-    city: "Vénissieux",
-    status: "annulee",
-    threads: [],
-  },
-];
+const SEED: MyRequest[] = [];
 
 /* ─── Status badge ─── */
 const STATUS_STYLES: Record<ReqStatus, { label: string; bg: string; color: string }> = {

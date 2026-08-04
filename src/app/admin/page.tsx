@@ -39,42 +39,9 @@ interface TokenTx {
   statut: "Payé" | "Remboursé";
 }
 
-/* ─── Seed data ─── */
-const PARTICULIERS_SEED: Particulier[] = [
-  { id: "U001", nom: "Marie Laurent",    email: "marie.l@gmail.com",       inscrit: "2 juin 2026",    demandes: 2, statut: "actif"     },
-  { id: "U002", nom: "Thomas Roux",      email: "thomas.r@outlook.fr",     inscrit: "5 juin 2026",    demandes: 1, statut: "actif"     },
-  { id: "U003", nom: "Sophie Martin",    email: "sophie.m@free.fr",        inscrit: "8 juin 2026",    demandes: 1, statut: "actif"     },
-  { id: "U004", nom: "Jean-Paul Dupont", email: "jpdupont@wanadoo.fr",     inscrit: "10 juin 2026",   demandes: 1, statut: "suspendu"  },
-  { id: "U005", nom: "Amina Benali",     email: "amina.b@yahoo.fr",        inscrit: "12 juin 2026",   demandes: 3, statut: "actif"     },
-  { id: "U006", nom: "Romain Charpentier", email: "romain.c@gmail.com",   inscrit: "14 juin 2026",   demandes: 1, statut: "actif"     },
-  { id: "U007", nom: "Lucie Faure",      email: "lucie.f@gmail.com",       inscrit: "15 juin 2026",   demandes: 2, statut: "actif"     },
-  { id: "U008", nom: "Kevin Petit",      email: "kevin.p@hotmail.fr",      inscrit: "17 juin 2026",   demandes: 1, statut: "actif"     },
-  { id: "U009", nom: "Isabelle Guérin",  email: "isabelle.g@sfr.fr",       inscrit: "18 juin 2026",   demandes: 1, statut: "actif"     },
-  { id: "U010", nom: "Marc Tournois",    email: "marc.t@laposte.net",      inscrit: "19 juin 2026",   demandes: 1, statut: "actif"     },
-  { id: "U011", nom: "Clara Noel",       email: "clara.n@gmail.com",       inscrit: "20 juin 2026",   demandes: 1, statut: "actif"     },
-  { id: "U012", nom: "Hugo Vincent",     email: "hugo.v@outlook.com",      inscrit: "21 juin 2026",   demandes: 1, statut: "actif"     },
-];
-
-const PARTENAIRES_SEED: Partenaire[] = [
-  { id: "P001", societe: "Vitro Pro Lyon",       gerant: "Paul Bernard",  email: "contact@vitropro.fr",   region: "Auvergne-Rhône-Alpes",    siret: "123 456 789 00012", inscrit: "1 juin 2026",   jetons: 12, statut: "validé"      },
-  { id: "P002", societe: "Glass Expert Paris",   gerant: "Laure Morin",   email: "laure@glassexpert.fr",  region: "Île-de-France",           siret: "234 567 890 00023", inscrit: "3 juin 2026",   jetons: 8,  statut: "validé"      },
-  { id: "P003", societe: "Sud Vitrage",          gerant: "Karim Amara",   email: "k.amara@sudvitrage.fr", region: "Provence-Alpes-Côte d'Azur", siret: "345 678 901 00034", inscrit: "7 juin 2026",   jetons: 5,  statut: "en attente"  },
-  { id: "P004", societe: "Auto Glass Bordeaux",  gerant: "Sophie Blanc",  email: "auto@glassbdx.com",     region: "Nouvelle-Aquitaine",      siret: "456 789 012 00045", inscrit: "9 juin 2026",   jetons: 0,  statut: "en attente"  },
-  { id: "P005", societe: "Bretagne Pare-brise",  gerant: "Yann Kermarc",  email: "yann@bretagnepb.fr",    region: "Bretagne",                siret: "567 890 123 00056", inscrit: "11 juin 2026",  jetons: 15, statut: "validé"      },
-  { id: "P006", societe: "Occitanie Vitrage",    gerant: "Marc Azéma",    email: "marc@occvitrage.fr",    region: "Occitanie",               siret: "678 901 234 00067", inscrit: "13 juin 2026",  jetons: 3,  statut: "en attente"  },
-  { id: "P007", societe: "Alsace Glass",         gerant: "Heinz Müller",  email: "h.muller@alsaceglass.fr", region: "Grand Est",             siret: "789 012 345 00078", inscrit: "15 juin 2026",  jetons: 0,  statut: "refusé"      },
-  { id: "P008", societe: "Nord Auto Vitres",     gerant: "Céline Dubois", email: "c.dubois@nordvitres.fr", region: "Hauts-de-France",        siret: "890 123 456 00089", inscrit: "16 juin 2026",  jetons: 20, statut: "validé"      },
-];
-
-const TOKENS_SEED: TokenTx[] = [
-  { id: "FAC-2026-0043", partenaire: "Vitro Pro Lyon",      pack: "Pack Expert",     jetons: 30, montant: "240,00 €", date: "12 juin 2026",   statut: "Payé"      },
-  { id: "FAC-2026-0039", partenaire: "Glass Expert Paris",  pack: "Pack Pro",        jetons: 15, montant: "130,00 €", date: "10 juin 2026",   statut: "Payé"      },
-  { id: "FAC-2026-0031", partenaire: "Bretagne Pare-brise", pack: "Pack Expert",     jetons: 30, montant: "240,00 €", date: "8 juin 2026",    statut: "Payé"      },
-  { id: "FAC-2026-0028", partenaire: "Nord Auto Vitres",    pack: "Pack Expert",     jetons: 30, montant: "240,00 €", date: "6 juin 2026",    statut: "Payé"      },
-  { id: "FAC-2026-0021", partenaire: "Vitro Pro Lyon",      pack: "Pack Pro",        jetons: 15, montant: "130,00 €", date: "3 mai 2026",     statut: "Remboursé" },
-  { id: "FAC-2026-0015", partenaire: "Glass Expert Paris",  pack: "Pack Découverte", jetons: 5,  montant: "55,00 €",  date: "20 avr. 2026",   statut: "Payé"      },
-  { id: "FAC-2026-0008", partenaire: "Bretagne Pare-brise", pack: "Pack Découverte", jetons: 5,  montant: "55,00 €",  date: "14 avr. 2026",   statut: "Payé"      },
-];
+const PARTICULIERS_SEED: Particulier[] = [];
+const PARTENAIRES_SEED: Partenaire[] = [];
+const TOKENS_SEED: TokenTx[] = [];
 
 /* ─── Login screen ─── */
 function AdminLogin({ onLogin }: { onLogin: () => void }) {

@@ -152,13 +152,7 @@ interface Notif {
   navTarget: NavItem;
 }
 
-const NOTIFS_SEED: Notif[] = [
-  { id: 1, type: "new_demande",    title: "Nouvelle demande près de vous",   body: "Peugeot 308 · Impact pare-brise · Lyon 7e",               time: "il y a 3 min",   read: false, navTarget: "demandes"    },
-  { id: 2, type: "message",        title: "Nouveau message client",           body: "Marie L. : « Bonjour, êtes-vous disponible demain ? »",   time: "il y a 14 min",  read: false, navTarget: "debloquees"  },
-  { id: 3, type: "devis_accepted", title: "Devis accepté 🎉",                 body: "Thomas R. a accepté votre offre de 280 €",               time: "il y a 1h",      read: false, navTarget: "debloquees"  },
-  { id: 4, type: "new_demande",    title: "Nouvelle demande près de vous",   body: "Citroën C3 · Vitre latérale · Villeurbanne",             time: "il y a 2h",      read: true,  navTarget: "demandes"    },
-  { id: 5, type: "system",         title: "Solde faible",                    body: "Il vous reste 2 jetons. Rechargez pour ne rien rater.",   time: "il y a 4h",      read: true,  navTarget: "facturation" },
-];
+const NOTIFS_SEED: Notif[] = [];
 
 const NOTIF_ICONS: Record<Notif["type"], React.ReactNode> = {
   new_demande:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="#2563EB" strokeWidth="1.8" strokeLinecap="round"/></svg>,
@@ -684,11 +678,11 @@ function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, a
       <div className="grid grid-cols-3 gap-4 mb-4">
         <MetricCard
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6Z" stroke="#D8302F" strokeWidth="1.8" strokeLinejoin="round"/></svg>}
-          iconBg="#FDE8E8" label="Nouvelles demandes" value="12" sub="dans votre zone aujourd'hui" subColor="#1D9E75"
+          iconBg="#FDE8E8" label="Nouvelles demandes" value={String(demandes.filter(d => d.isNew).length || 0)} sub="dans votre zone aujourd'hui" subColor="#1D9E75"
         />
         <MetricCard
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#1D9E75" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-          iconBg="#E8F6F0" label="Fiches débloquées" value={String(unlocked.size || 8)} sub="ce mois-ci" subColor="#6B7280"
+          iconBg="#E8F6F0" label="Fiches débloquées" value={String(unlocked.size)} sub="au total" subColor="#6B7280"
         />
         <div className="rounded-2xl p-5 text-white" style={{ background: "linear-gradient(150deg,#0F5C44,#1D9E75)", boxShadow: "0 6px 20px rgba(15,92,68,.22)" }}>
           <div className="flex items-center gap-2 text-[12.5px] font-bold opacity-90 mb-3">
@@ -1106,11 +1100,6 @@ function ZoneView() {
 }
 
 /* ─── Avis view ─── */
-const AVIS_SEED = [
-  { id: "1", client: "Marie T.",  date: "18 juin 2026", note: 5, demande: "Remplacement pare-brise Peugeot 308", comment: "Intervention rapide et soignée. Le technicien était ponctuel et très professionnel. Je recommande vivement !" },
-  { id: "2", client: "Luc D.",    date: "5 juin 2026",  note: 4, demande: "Réparation impact Renault Clio",      comment: "Très bon travail, résultat propre. Légère attente pour la prise en charge mais le service est top." },
-  { id: "3", client: "Sophie M.", date: "22 mai 2026",  note: 5, demande: "Remplacement vitre BMW Série 3",      comment: "Parfait de bout en bout. Devis clair, délai respecté, qualité irréprochable. Merci !" },
-];
 
 function StarDisplay({ note }: { note: number }) {
   return (
@@ -1125,98 +1114,16 @@ function StarDisplay({ note }: { note: number }) {
 }
 
 function AvisView() {
-  const [replyOpen, setReplyOpen] = useState<string | null>(null);
-  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
-  const [replied, setReplied] = useState<Set<string>>(new Set());
-
-  const avg = (AVIS_SEED.reduce((s, a) => s + a.note, 0) / AVIS_SEED.length).toFixed(1);
-
   return (
     <div>
       <div className="mb-5">
         <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Mes avis clients</h1>
         <p className="m-0 mt-1.5 text-[14px] font-medium" style={{ color: "#6B7280" }}>Les avis laissés par vos clients après intervention.</p>
       </div>
-
-      {/* Agrégat */}
-      <div className="bg-white rounded-2xl p-6 flex items-center gap-6 flex-wrap mb-6" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
-        <div className="text-center">
-          <div className="text-[52px] font-extrabold tracking-tight leading-none" style={{ color: "#11211B" }}>{avg}</div>
-          <StarDisplay note={Math.round(parseFloat(avg))} />
-          <div className="text-[12.5px] font-semibold mt-1" style={{ color: "#6B7280" }}>{AVIS_SEED.length} avis</div>
-        </div>
-        <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
-          {[5,4,3,2,1].map((s) => {
-            const count = AVIS_SEED.filter((a) => a.note === s).length;
-            return (
-              <div key={s} className="flex items-center gap-2">
-                <span className="text-[12px] font-bold w-4 text-right">{s}</span>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="#F5A623"><path d="M12 15.4l-4.2 2.3.8-4.7L5 9.6l4.7-.7L12 4.6l2.3 4.3 4.7.7-3.6 3.4.8 4.7Z"/></svg>
-                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "#EEF2F0" }}>
-                  <div className="h-full rounded-full" style={{ width: `${(count / AVIS_SEED.length) * 100}%`, background: "#F5A623" }} />
-                </div>
-                <span className="text-[12px] font-semibold w-3" style={{ color: "#9aa39e" }}>{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Liste avis */}
-      <div className="flex flex-col gap-3">
-        {AVIS_SEED.map((avis) => (
-          <div key={avis.id} className="bg-white rounded-[16px] p-5" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
-            <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
-              <div>
-                <div className="flex items-center gap-2.5 mb-1">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center font-extrabold text-[12px] text-white" style={{ background: "linear-gradient(150deg,#1D9E75,#0F5C44)" }}>
-                    {avis.client[0]}
-                  </div>
-                  <span className="font-extrabold text-[14px]">{avis.client}</span>
-                  <StarDisplay note={avis.note} />
-                </div>
-                <div className="text-[12px] font-semibold" style={{ color: "#9aa39e" }}>{avis.date} · {avis.demande}</div>
-              </div>
-            </div>
-            <p className="m-0 text-[13.5px] font-medium leading-relaxed mb-3" style={{ color: "#3d4b44" }}>"{avis.comment}"</p>
-
-            {replied.has(avis.id) ? (
-              <div className="rounded-[10px] p-3 flex gap-2" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5"><path d="M3 10l9-7 9 7v9a1 1 0 01-1 1H4a1 1 0 01-1-1v-9Z" stroke="#1D9E75" strokeWidth="1.8"/></svg>
-                <div>
-                  <div className="text-[11.5px] font-extrabold mb-0.5" style={{ color: "#1D9E75" }}>Votre réponse</div>
-                  <p className="m-0 text-[12.5px] font-medium" style={{ color: "#3d4b44" }}>{replyTexts[avis.id]}</p>
-                </div>
-              </div>
-            ) : replyOpen === avis.id ? (
-              <div>
-                <textarea
-                  value={replyTexts[avis.id] || ""}
-                  onChange={(e) => setReplyTexts((prev) => ({ ...prev, [avis.id]: e.target.value }))}
-                  placeholder="Répondez publiquement à cet avis..."
-                  rows={3}
-                  className="w-full rounded-[10px] px-3.5 py-2.5 text-[13.5px] font-medium outline-none resize-none mb-2"
-                  style={{ border: "1px solid #EAEFED" }}
-                />
-                <div className="flex gap-2">
-                  <button onClick={() => setReplyOpen(null)} className="rounded-[9px] px-4 py-2 font-bold text-[13px] border-0 cursor-pointer" style={{ background: "#F4F6F5", color: "#6B7280" }}>Annuler</button>
-                  <button
-                    onClick={() => { if (replyTexts[avis.id]?.trim()) { setReplied((prev) => new Set(prev).add(avis.id)); setReplyOpen(null); } }}
-                    disabled={!replyTexts[avis.id]?.trim()}
-                    className="rounded-[9px] px-4 py-2 font-bold text-[13px] text-white border-0 cursor-pointer disabled:opacity-50"
-                    style={{ background: "#1D9E75" }}
-                  >
-                    Publier ma réponse
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button onClick={() => setReplyOpen(avis.id)} className="text-[12.5px] font-bold border-0 bg-transparent cursor-pointer p-0" style={{ color: "#1D9E75" }}>
-                Répondre →
-              </button>
-            )}
-          </div>
-        ))}
+      <div className="bg-white rounded-2xl p-10 text-center" style={{ border: "1px solid #EAEFED" }}>
+        <div className="text-[38px] mb-3">⭐</div>
+        <div className="font-extrabold text-[16px] mb-1">Aucun avis pour l'instant</div>
+        <div className="text-[13.5px] font-medium" style={{ color: "#6B7280" }}>Les avis de vos clients apparaîtront ici après chaque intervention.</div>
       </div>
     </div>
   );
