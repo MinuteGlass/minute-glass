@@ -100,5 +100,31 @@ export async function POST(req: NextRequest) {
     if (res.ok) sent++;
   }
 
+  // Notification admin
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "MinuteGlass <no-reply@minuteglass.fr>",
+        to: [adminEmail],
+        subject: `📋 [Admin] Nouvelle demande — ${city}`,
+        html: `<p style="font-family:sans-serif;font-size:15px;">
+          <b>Nouvelle demande déposée</b><br><br>
+          <b>Véhicule :</b> ${title}<br>
+          <b>Ville :</b> ${city}<br>
+          <b>Type :</b> ${interventionLabel}<br>
+          ${damage ? `<b>Description :</b> ${damage}<br>` : ""}
+          <br>
+          <a href="https://minuteglass.fr/admin">Voir dans l'admin →</a>
+        </p>`,
+      }),
+    });
+  }
+
   return NextResponse.json({ ok: true, sent });
 }
