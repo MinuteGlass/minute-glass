@@ -54,8 +54,12 @@ export default function ListingPage() {
           .then(({ demandes: pd }) => {
             if (!Array.isArray(pd)) return;
             const contacts: Record<string, { phone: string; email: string }> = {};
-            pd.filter((d: Demande) => d.isUnlocked && d.phone && !d.phone.includes("●"))
-              .forEach((d: Demande) => { contacts[d.id] = { phone: d.phone!, email: d.email ?? "" }; });
+            pd.filter((d: Demande) => d.isUnlocked)
+              .forEach((d: Demande) => {
+                const phone = d.phone && !d.phone.includes("●") ? d.phone : "";
+                const email = d.email && !d.email.includes("●") ? d.email : "";
+                contacts[d.id] = { phone, email };
+              });
             setPartnerContacts(contacts);
           }).catch(() => {});
       }
