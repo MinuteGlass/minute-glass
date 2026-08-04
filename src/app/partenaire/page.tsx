@@ -2033,7 +2033,25 @@ export default function PartenairePage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const { demandes: real } = await res.json();
-        if (Array.isArray(real) && real.length > 0) setDemandes(real);
+        if (Array.isArray(real) && real.length > 0) {
+          setDemandes(real);
+          // Sync unlocked state and contacts from Supabase (source of truth)
+          const unlockedFromApi = real.filter((d: Demande) => d.isUnlocked).map((d: Demande) => d.id);
+          if (unlockedFromApi.length > 0) {
+            setUnlocked((prev) => {
+              const next = new Set(prev);
+              unlockedFromApi.forEach((id: string) => next.add(id));
+              return next;
+            });
+            const freshContacts: Record<string, { phone: string; email: string }> = {};
+            real.filter((d: Demande) => d.isUnlocked && d.phone && !d.phone.includes("●")).forEach((d: Demande) => {
+              freshContacts[d.id] = { phone: d.phone ?? "", email: d.email ?? "" };
+            });
+            if (Object.keys(freshContacts).length > 0) {
+              setContacts((prev) => ({ ...prev, ...freshContacts }));
+            }
+          }
+        }
       } catch {}
     });
   }, []);
@@ -2065,7 +2083,7 @@ export default function PartenairePage() {
   });
   // Attribution : fiches dont mon devis a été accepté / attribuées à un autre
   const [attributedToMe, setAttributedToMe]           = useState<Set<string>>(new Set());
-  const [attributedElsewhere, setAttributedElsewhere] = useState<Set<string>>(new Set(["3"])); // seed : demande id "3" déjà prise
+  const [attributedElsewhere, setAttributedElsewhere] = useState<Set<string>>(new Set());
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [successJetons, setSuccessJetons] = useState<number | null>(null);
@@ -2094,10 +2112,46 @@ export default function PartenairePage() {
     return () => window.removeEventListener("mg_auth_change", syncTokens);
   }, []);
 
-  // Coordonnées débloquées — chargées depuis mg_contacts au montage
+  // Coordonnées débloquées — chargées depuis mg_contacts au montage (données valides seulement)
   const [contacts, setContacts] = useState<Record<string, { phone: string; email: string }>>(() => {
-    try { const v = localStorage.getItem("mg_contacts"); return v ? JSON.parse(v) : {}; } catch { return {}; }
+    try {
+      const v = localStorage.getItem("mg_contacts");
+      if (!v) return {};
+      const parsed = JSON.parse(v) as Record<string, { phone: string; email: string }>;
+      // Purge stale placeholder dot data saved by old code versions
+      const clean: Record<string, { phone: string; email: string }> = {};
+      for (const [id, c] of Object.entries(parsed)) {
+        if (!c.phone?.includes("●") && !c.email?.includes("●")) clean[id] = c;
+      }
+      return clean;
+    } catch { return {}; }
   });
+
+  // Refresh real contacts from API on mount
+  useEffect(() => {
+    const ids = [...unlocked];
+    if (ids.length === 0) return;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session?.access_token) return;
+      try {
+        const res = await fetch("/api/partenaire/contacts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ demandeIds: ids }),
+        });
+        if (!res.ok) return;
+        const { contacts: fresh } = await res.json();
+        if (fresh && Object.keys(fresh).length > 0) {
+          setContacts((prev) => ({ ...prev, ...fresh }));
+          try {
+            const stored = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+            localStorage.setItem("mg_contacts", JSON.stringify({ ...stored, ...fresh }));
+          } catch {}
+        }
+      } catch {}
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Persist to localStorage on change
   useEffect(() => { try { localStorage.setItem("mg_tokens", String(tokens)); } catch {} }, [tokens]);
@@ -2111,8 +2165,7 @@ export default function PartenairePage() {
     if (phone || email) {
       setContacts((prev) => ({ ...prev, [id]: { phone: phone ?? "", email: email ?? "" } }));
     }
-    const d = DEMANDES.find((d) => d.id === id);
-    toast(`Fiche débloquée${d ? ` — ${d.title}` : ""} ! Coordonnées visibles.`, "success");
+    toast(`Fiche débloquée ! Coordonnées visibles.`, "success");
   }
   function handleBalanceUpdate(newBalance: number) {
     setTokens(newBalance);

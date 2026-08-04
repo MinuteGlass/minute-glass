@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Demande } from "@/types";
 import { tokenCost } from "@/lib/token-cost";
@@ -12,7 +12,7 @@ const INTERVENTION_LABELS: Record<string, { label: string; bg: string; color: st
   vitre:        { label: "Vitre latérale",          bg: "#EDE9FE", color: "#6D28D9" },
 };
 
-export function DemandeCard({ demande, isPartner, isParticulier }: { demande: Demande; isPartner: boolean; isParticulier?: boolean }) {
+export function DemandeCard({ demande, isPartner, isParticulier, contactsOverride }: { demande: Demande; isPartner: boolean; isParticulier?: boolean; contactsOverride?: { phone: string; email: string } | null }) {
   const [unlocked, setUnlocked] = useState(() => {
     try {
       const stored = localStorage.getItem("mg_unlocked");
@@ -20,12 +20,17 @@ export function DemandeCard({ demande, isPartner, isParticulier }: { demande: De
     } catch { return demande.isUnlocked ?? false; }
   });
   const [contacts, setContacts] = useState<{ phone: string; email: string } | null>(() => {
+    if (contactsOverride) return contactsOverride;
     try {
       const stored = localStorage.getItem("mg_contacts");
       const all = stored ? JSON.parse(stored) : {};
       return all[demande.id] ?? null;
     } catch { return null; }
   });
+
+  useEffect(() => {
+    if (contactsOverride) setContacts(contactsOverride);
+  }, [contactsOverride]);
   const [showModal, setShowModal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
