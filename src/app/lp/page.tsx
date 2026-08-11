@@ -177,114 +177,45 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero — mobile: image, desktop: 2 colonnes texte + illustration ── */}
-
-      {/* Mobile hero (< lg) */}
-      <section className="relative w-full lg:hidden" style={{ background: "#071e12" }}>
+      {/* ── Hero ── */}
+      <section className="relative w-full overflow-hidden" style={{ background: "#071e12" }}>
+        {/* Image — hauteur libre sur mobile, limitée sur desktop */}
         <img
           src="/hero.webp"
           alt="Technicien remplaçant un pare-brise à domicile"
           className="w-full block"
-        />
-        <div
-          className="px-4 pb-6 flex flex-col sm:flex-row gap-3"
           style={{
-            background: "linear-gradient(to top, rgba(7,30,18,0.95) 0%, transparent 100%)",
-            marginTop: -80,
-            paddingTop: 80,
+            maxHeight: "clamp(400px, 60vh, 680px)",
+            objectFit: "cover",
+            objectPosition: "top center",
+          }}
+        />
+        {/* CTAs — centrées et limitées en largeur sur desktop */}
+        <div
+          className="absolute bottom-0 left-0 right-0 px-4 pb-5 sm:pb-8"
+          style={{
+            background: "linear-gradient(to top, rgba(7,30,18,1) 0%, rgba(7,30,18,0.7) 60%, transparent 100%)",
+            paddingTop: 120,
           }}
         >
-          <Link
-            href="/deposer"
-            className="flex-1 flex items-center justify-center gap-2 rounded-[14px] py-4 font-extrabold text-[16px] no-underline text-center"
-            style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.4)" }}
-          >
-            Déposer une demande →
-          </Link>
-          <Link
-            href="/deposer"
-            className="flex-1 flex flex-col items-center justify-center rounded-[14px] py-3 no-underline text-center text-white"
-            style={{ background: "#FF6B00", boxShadow: "0 4px 16px rgba(255,107,0,.4)" }}
-          >
-            <span className="font-semibold text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
-              Pas assuré bris de glace ?
-            </span>
-            <span className="font-extrabold text-[15px]">Devis gratuit →</span>
-          </Link>
-        </div>
-      </section>
-
-      {/* Desktop hero (≥ lg) */}
-      <section
-        className="hidden lg:flex items-center"
-        style={{
-          background: "linear-gradient(135deg, #071e12 0%, #0d3320 50%, #0f4426 100%)",
-          minHeight: 580,
-        }}
-      >
-        <div className="max-w-[1200px] mx-auto px-8 w-full flex items-center gap-12 py-16">
-          {/* Texte gauche */}
-          <div className="flex-1 min-w-0">
-            {/* Badge */}
-            <div
-              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12.5px] font-bold mb-6"
-              style={{ background: "rgba(126,237,199,.12)", border: "1px solid rgba(126,237,199,.25)", color: "#7EEDC7" }}
+          <div className="max-w-[680px] mx-auto flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/deposer"
+              className="flex-1 flex items-center justify-center gap-2 rounded-[14px] py-4 font-extrabold text-[16px] no-underline text-center"
+              style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.4)" }}
             >
-              ⚡ Réponse en moins de 30 min · Déplacement gratuit
-            </div>
-            <h1
-              className="m-0 font-extrabold leading-[1.08] tracking-tight mb-5"
-              style={{ color: "#fff", fontSize: "clamp(36px, 3.5vw, 56px)" }}
+              Déposer une demande →
+            </Link>
+            <Link
+              href="/deposer"
+              className="flex-1 flex flex-col items-center justify-center rounded-[14px] py-3 no-underline text-center text-white"
+              style={{ background: "#FF6B00", boxShadow: "0 4px 16px rgba(255,107,0,.4)" }}
             >
-              Un pare-brise cassé ?<br />
-              <span style={{ color: "#7EEDC7" }}>On s&apos;occupe de tout.</span>
-            </h1>
-            <p className="m-0 mb-8 text-[16px] font-medium leading-relaxed" style={{ color: "rgba(255,255,255,.65)", maxWidth: 460 }}>
-              Déposez votre demande gratuitement. Des réparateurs certifiés de votre zone vous contactent en moins de 30 min. Pris en charge par votre assurance.
-            </p>
-
-            {/* Checklist */}
-            <div className="flex flex-col gap-2.5 mb-8">
-              {[
-                "Remplacement à domicile gratuit",
-                "Toutes assurances acceptées",
-                "Devis gratuit sans engagement",
-                "100% gratuit pour les particuliers",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-3">
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                    style={{ background: "rgba(126,237,199,.15)", color: "#7EEDC7" }}
-                  >
-                    ✓
-                  </div>
-                  <span className="text-[14px] font-medium" style={{ color: "rgba(255,255,255,.75)" }}>{item}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* CTAs */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <Link
-                href="/deposer"
-                className="inline-flex items-center gap-2 rounded-[13px] px-7 py-4 font-extrabold text-[15px] no-underline"
-                style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.35)" }}
-              >
-                Déposer une demande →
-              </Link>
-              <Link
-                href="/deposer"
-                className="inline-flex items-center gap-2 rounded-[13px] px-6 py-4 font-bold text-[14px] no-underline"
-                style={{ background: "#FF6B00", color: "#fff", boxShadow: "0 4px 16px rgba(255,107,0,.35)" }}
-              >
-                Devis sans assurance →
-              </Link>
-            </div>
-          </div>
-
-          {/* Illustration droite */}
-          <div className="flex-shrink-0 w-[520px] xl:w-[580px]">
-            <VanIllustration />
+              <span className="font-semibold text-[12px] mb-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
+                Vous n&apos;êtes pas assuré bris de glace ?
+              </span>
+              <span className="font-extrabold text-[15px]">Obtenir mon devis gratuit →</span>
+            </Link>
           </div>
         </div>
       </section>
