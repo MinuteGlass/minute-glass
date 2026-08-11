@@ -179,16 +179,17 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative w-full overflow-hidden" style={{ background: "#071e12" }}>
-        {/* Image — hauteur libre sur mobile, limitée sur desktop */}
+        {/* Mobile : image portrait */}
         <img
           src="/hero.webp"
           alt="Technicien remplaçant un pare-brise à domicile"
-          className="w-full block"
-          style={{
-            maxHeight: "clamp(400px, 60vh, 680px)",
-            objectFit: "cover",
-            objectPosition: "top center",
-          }}
+          className="w-full block sm:hidden"
+        />
+        {/* Desktop : image paysage */}
+        <img
+          src="/hero-desktop.webp"
+          alt="Technicien remplaçant un pare-brise à domicile"
+          className="w-full hidden sm:block"
         />
         {/* CTAs — centrées et limitées en largeur sur desktop */}
         <div
