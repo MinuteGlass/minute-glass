@@ -78,19 +78,70 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`;
 
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "MinuteGlass <no-reply@minuteglass.fr>",
-      to: [adminEmail],
-      subject: `📋 Nouveau réparateur à valider — ${profile.company ?? profile.name}`,
-      html,
+  const welcomeHtml = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F4F6F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6F5;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(17,33,27,.08);">
+        <tr>
+          <td style="background:linear-gradient(150deg,#0F5C44,#1D9E75);padding:32px 40px;">
+            <p style="margin:0;font-size:22px;font-weight:800;color:#fff;">MinuteGlass</p>
+            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,.75);">Votre inscription réparateur</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 16px;font-size:22px;font-weight:800;color:#11211B;">Bonjour ${profile.name} 👋</p>
+            <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6;">
+              Nous avons bien reçu votre dossier d'inscription pour <strong>${profile.company ?? profile.name}</strong>.
+              Notre équipe va vérifier votre Kbis et valider votre compte sous <strong>24 à 48h ouvrées</strong>.
+            </p>
+            <div style="background:#E8F6F0;border-radius:14px;padding:20px 24px;margin-bottom:24px;">
+              <p style="margin:0;font-size:14px;font-weight:700;color:#0F5C44;">
+                ✅ Dossier reçu · Zones : ${(profile.regions ?? []).join(", ") || "—"}
+              </p>
+            </div>
+            <p style="margin:0;font-size:14px;color:#6B7280;">
+              Vous recevrez un email dès que votre compte sera activé. Des questions ?
+              <a href="mailto:contact@minuteglass.fr" style="color:#1D9E75;">contact@minuteglass.fr</a>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:20px 40px 28px;border-top:1px solid #EAEFED;">
+            <p style="margin:0;font-size:12px;color:#9aa39e;">© ${year} MinuteGlass — <a href="https://minuteglass.fr" style="color:#1D9E75;">minuteglass.fr</a></p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  await Promise.all([
+    fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "MinuteGlass <no-reply@minuteglass.fr>",
+        to: [adminEmail],
+        subject: `📋 Nouveau réparateur à valider — ${profile.company ?? profile.name}`,
+        html,
+      }),
     }),
-  });
+    fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "MinuteGlass <no-reply@minuteglass.fr>",
+        to: [profile.email],
+        subject: "📋 Dossier reçu — nous examinons votre inscription MinuteGlass",
+        html: welcomeHtml,
+      }),
+    }),
+  ]);
 
   return NextResponse.json({ ok: true });
 }

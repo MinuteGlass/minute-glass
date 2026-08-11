@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyToken } from "@/app/api/admin/login/route";
 
 export async function POST(req: NextRequest) {
+  // Route appelée uniquement par validate-repairer (server-side) — vérifie le token admin
+  const adminToken = req.headers.get("x-admin-token") ?? "";
+  if (!verifyToken(adminToken, process.env.ADMIN_SESSION_SECRET ?? "")) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
   const { to, name, company, statut } = await req.json();
   if (!to || !statut) return NextResponse.json({ error: "Paramètres manquants" }, { status: 400 });
 

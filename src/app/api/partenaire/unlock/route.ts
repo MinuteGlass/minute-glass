@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { tokenCost } from "@/lib/token-cost";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,21 +37,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Compte en attente de validation" }, { status: 403 });
   }
 
-  const { demandeId, cost } = await req.json();
-  if (!demandeId || typeof cost !== "number" || cost < 1) {
+  const { demandeId } = await req.json();
+  if (!demandeId) {
     return NextResponse.json({ error: "Paramètres invalides" }, { status: 400 });
   }
+
+  // Récupère la demande pour calculer le coût côté serveur (jamais depuis le client)
+  const { data: demandeMeta } = await supabaseAdmin
+    .from("demandes")
+    .select("status, booked_by, intervention, insurance")
+    .eq("id", demandeId)
+    .single();
+
+  if (!demandeMeta) {
+    return NextResponse.json({ error: "Demande introuvable" }, { status: 404 });
+  }
+
+  const cost = tokenCost(demandeMeta.intervention, demandeMeta.insurance);
 
   if (profile.tokens < cost) {
     return NextResponse.json({ error: "Solde insuffisant", tokens: profile.tokens }, { status: 402 });
   }
-
-  // Vérifie si la demande est déjà attribuée à un autre réparateur
-  const { data: demandeMeta } = await supabaseAdmin
-    .from("demandes")
-    .select("status, booked_by")
-    .eq("id", demandeId)
-    .single();
 
   if (demandeMeta?.status === "booked" && demandeMeta?.booked_by !== user.id) {
     return NextResponse.json({ error: "Cette demande a déjà été attribuée à un autre réparateur.", booked: true }, { status: 409 });

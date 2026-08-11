@@ -889,14 +889,15 @@ export default function AdminPage() {
     if (token) setLoggedIn(true);
   }, []);
 
-  // Charge les vrais partenaires depuis Supabase quand connecté
+  // Charge les vrais utilisateurs depuis Supabase quand connecté
   useEffect(() => {
     if (!loggedIn) return;
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
+
     fetch("/api/admin/partenaires", { headers: { "x-admin-token": token } })
       .then(r => r.json())
       .then(({ partenaires: real }) => {
-        if (!real || real.length === 0) return;
+        if (!Array.isArray(real)) return;
         const mapped: Partenaire[] = real.map((p: {
           id: string; name: string; company: string; email: string;
           regions: string[]; siret: string; created_at: string;
@@ -914,6 +915,24 @@ export default function AdminPage() {
           kbis_url: p.kbis_url ?? "",
         }));
         setPartenaires(mapped);
+      })
+      .catch(() => {});
+
+    fetch("/api/admin/particuliers", { headers: { "x-admin-token": token } })
+      .then(r => r.json())
+      .then(({ particuliers: real }) => {
+        if (!Array.isArray(real)) return;
+        const mapped: Particulier[] = real.map((p: {
+          id: string; name: string; email: string; created_at: string;
+        }) => ({
+          id: p.id,
+          nom: p.name ?? p.email,
+          email: p.email,
+          inscrit: new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+          demandes: 0,
+          statut: "actif",
+        }));
+        setParticuliers(mapped);
       })
       .catch(() => {});
   }, [loggedIn]);

@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const isValidated = statut === "validé";
     await fetch(`${req.nextUrl.origin}/api/notify/repairer-status`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-token": token },
       body: JSON.stringify({
         to: profile.email,
         name: profile.name,
