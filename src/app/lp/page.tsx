@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { Footer } from "@/components/Footer";
 
 function VanIllustration() {
   return (
@@ -161,10 +160,10 @@ export default function LandingPage() {
 
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-40 bg-white border-b" style={{ borderColor: "#EAEFED" }}>
-        <div className="max-w-[1100px] mx-auto px-5 h-[62px] flex items-center justify-between">
+        <div className="max-w-[1200px] mx-auto px-6 h-[64px] flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-3">
-            <Link href="/partenaire" className="text-[13.5px] font-bold hidden sm:block" style={{ color: "#6B7280" }}>
+          <div className="flex items-center gap-4">
+            <Link href="/partenaire" className="text-[14px] font-semibold hidden sm:block" style={{ color: "#6B7280" }}>
               Espace réparateur
             </Link>
             <Link
@@ -178,45 +177,129 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero ── */}
-      <section className="relative w-full" style={{ background: "#071e12" }}>
+      {/* ── Hero — mobile: image, desktop: 2 colonnes texte + illustration ── */}
+
+      {/* Mobile hero (< lg) */}
+      <section className="relative w-full lg:hidden" style={{ background: "#071e12" }}>
         <img
           src="/hero.webp"
           alt="Technicien remplaçant un pare-brise à domicile"
           className="w-full block"
         />
-        <div className="absolute bottom-0 left-0 right-0 px-4 pb-5 flex flex-col sm:flex-row gap-3" style={{ background: "linear-gradient(to top, rgba(7,30,18,0.9) 0%, transparent 100%)", paddingTop: "60px" }}>
+        <div
+          className="px-4 pb-6 flex flex-col sm:flex-row gap-3"
+          style={{
+            background: "linear-gradient(to top, rgba(7,30,18,0.95) 0%, transparent 100%)",
+            marginTop: -80,
+            paddingTop: 80,
+          }}
+        >
           <Link
             href="/deposer"
-            className="flex-1 flex items-center justify-center gap-2 rounded-[16px] py-4 font-extrabold text-[17px] no-underline text-center"
+            className="flex-1 flex items-center justify-center gap-2 rounded-[14px] py-4 font-extrabold text-[16px] no-underline text-center"
             style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.4)" }}
           >
             Déposer une demande →
           </Link>
           <Link
             href="/deposer"
-            className="flex-1 flex flex-col items-center justify-center rounded-[16px] py-3 no-underline text-center text-white"
+            className="flex-1 flex flex-col items-center justify-center rounded-[14px] py-3 no-underline text-center text-white"
             style={{ background: "#FF6B00", boxShadow: "0 4px 16px rgba(255,107,0,.4)" }}
           >
-            <span className="font-semibold text-[12px] mb-1" style={{ color: "rgba(255,255,255,.8)" }}>
-              Vous n'êtes pas assuré bris de glace ?
+            <span className="font-semibold text-[11px] mb-0.5" style={{ color: "rgba(255,255,255,.8)" }}>
+              Pas assuré bris de glace ?
             </span>
-            <span className="font-extrabold text-[16px]">Obtenir mon devis gratuit →</span>
+            <span className="font-extrabold text-[15px]">Devis gratuit →</span>
           </Link>
+        </div>
+      </section>
+
+      {/* Desktop hero (≥ lg) */}
+      <section
+        className="hidden lg:flex items-center"
+        style={{
+          background: "linear-gradient(135deg, #071e12 0%, #0d3320 50%, #0f4426 100%)",
+          minHeight: 580,
+        }}
+      >
+        <div className="max-w-[1200px] mx-auto px-8 w-full flex items-center gap-12 py-16">
+          {/* Texte gauche */}
+          <div className="flex-1 min-w-0">
+            {/* Badge */}
+            <div
+              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[12.5px] font-bold mb-6"
+              style={{ background: "rgba(126,237,199,.12)", border: "1px solid rgba(126,237,199,.25)", color: "#7EEDC7" }}
+            >
+              ⚡ Réponse en moins de 30 min · Déplacement gratuit
+            </div>
+            <h1
+              className="m-0 font-extrabold leading-[1.08] tracking-tight mb-5"
+              style={{ color: "#fff", fontSize: "clamp(36px, 3.5vw, 56px)" }}
+            >
+              Un pare-brise cassé ?<br />
+              <span style={{ color: "#7EEDC7" }}>On s&apos;occupe de tout.</span>
+            </h1>
+            <p className="m-0 mb-8 text-[16px] font-medium leading-relaxed" style={{ color: "rgba(255,255,255,.65)", maxWidth: 460 }}>
+              Déposez votre demande gratuitement. Des réparateurs certifiés de votre zone vous contactent en moins de 30 min. Pris en charge par votre assurance.
+            </p>
+
+            {/* Checklist */}
+            <div className="flex flex-col gap-2.5 mb-8">
+              {[
+                "Remplacement à domicile gratuit",
+                "Toutes assurances acceptées",
+                "Devis gratuit sans engagement",
+                "100% gratuit pour les particuliers",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-3">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
+                    style={{ background: "rgba(126,237,199,.15)", color: "#7EEDC7" }}
+                  >
+                    ✓
+                  </div>
+                  <span className="text-[14px] font-medium" style={{ color: "rgba(255,255,255,.75)" }}>{item}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* CTAs */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <Link
+                href="/deposer"
+                className="inline-flex items-center gap-2 rounded-[13px] px-7 py-4 font-extrabold text-[15px] no-underline"
+                style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.35)" }}
+              >
+                Déposer une demande →
+              </Link>
+              <Link
+                href="/deposer"
+                className="inline-flex items-center gap-2 rounded-[13px] px-6 py-4 font-bold text-[14px] no-underline"
+                style={{ background: "#FF6B00", color: "#fff", boxShadow: "0 4px 16px rgba(255,107,0,.35)" }}
+              >
+                Devis sans assurance →
+              </Link>
+            </div>
+          </div>
+
+          {/* Illustration droite */}
+          <div className="flex-shrink-0 w-[520px] xl:w-[580px]">
+            <VanIllustration />
+          </div>
         </div>
       </section>
 
       {/* ── Stats ── */}
       <section className="border-b" style={{ borderColor: "#EAEFED" }}>
-        <div className="max-w-[1100px] mx-auto px-5 py-8 grid grid-cols-3 gap-3 text-center">
+        <div className="max-w-[1200px] mx-auto px-6 py-10 grid grid-cols-3 gap-6 text-center">
           {[
             ["Toute la France", "Couverture nationale"],
-            ["< 30 min", "Délai de réponse"],
+            ["< 30 min", "Délai de réponse moyen"],
             ["0 €", "Pour le particulier"],
           ].map(([val, label]) => (
             <div key={label}>
-              <div className="text-[18px] md:text-[32px] font-extrabold leading-tight" style={{ color: "#0F5C44" }}>{val}</div>
-              <div className="text-[11px] md:text-[12.5px] font-semibold mt-0.5" style={{ color: "#6B7280" }}>{label}</div>
+              <div className="text-[22px] md:text-[38px] font-extrabold leading-tight" style={{ color: "#0F5C44" }}>{val}</div>
+              <div className="text-[12px] md:text-[13.5px] font-semibold mt-1" style={{ color: "#6B7280" }}>{label}</div>
             </div>
           ))}
         </div>
@@ -224,16 +307,16 @@ export default function LandingPage() {
 
       {/* ── Sans assurance ── */}
       <section style={{ background: "#FFF8F0", borderBottom: "1px solid #FFE8CC" }}>
-        <div className="max-w-[1100px] mx-auto px-5 py-10 flex flex-col md:flex-row items-center gap-8">
-          <div className="text-[56px] flex-shrink-0">💰</div>
+        <div className="max-w-[1200px] mx-auto px-6 py-12 flex flex-col lg:flex-row items-center gap-8">
+          <div className="text-[52px] flex-shrink-0 hidden sm:block">💰</div>
           <div className="flex-1">
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-bold mb-3" style={{ background: "#FFE8CC", color: "#B45309" }}>
               Pas d'assurance bris de glace ?
             </div>
-            <h2 className="m-0 text-[20px] md:text-[24px] font-extrabold mb-2" style={{ color: "#11211B" }}>
+            <h2 className="m-0 text-[20px] lg:text-[26px] font-extrabold mb-2" style={{ color: "#11211B" }}>
               Pas de panique — on trouve le meilleur prix
             </h2>
-            <p className="m-0 text-[14.5px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>
+            <p className="m-0 text-[14.5px] font-medium leading-relaxed" style={{ color: "#6B7280", maxWidth: 600 }}>
               Sans garantie bris de glace, votre assureur ne prend rien en charge. Déposez votre demande sur MinuteGlass et plusieurs réparateurs locaux vous feront un devis au meilleur prix. Vous comparez et choisissez librement — <strong style={{ color: "#11211B" }}>sans engagement</strong>.
             </p>
           </div>
@@ -250,12 +333,12 @@ export default function LandingPage() {
       </section>
 
       {/* ── Comment ça marche ── */}
-      <section id="comment" className="max-w-[1100px] mx-auto px-5 py-16 md:py-20">
-        <div className="text-center mb-12">
-          <h2 className="m-0 text-[26px] md:text-[34px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
+      <section id="comment" className="max-w-[1200px] mx-auto px-6 py-16 lg:py-24">
+        <div className="text-center mb-14">
+          <h2 className="m-0 text-[26px] lg:text-[38px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
             Simple comme bonjour
           </h2>
-          <p className="m-0 mt-3 text-[15px] font-medium" style={{ color: "#6B7280" }}>
+          <p className="m-0 mt-3 text-[15px] lg:text-[16px] font-medium" style={{ color: "#6B7280" }}>
             3 étapes pour recevoir des devis sans bouger de chez vous.
           </p>
         </div>
@@ -265,20 +348,20 @@ export default function LandingPage() {
             { n: "2", icon: "📞", title: "Les réparateurs vous contactent", desc: "Les vitriers de votre zone reçoivent votre demande et vous rappellent en moins de 30 min." },
             { n: "3", icon: "✅", title: "Choisissez le meilleur", desc: "Comparez les offres et choisissez librement. Déplacement à domicile gratuit. Aucune obligation." },
           ].map((step) => (
-            <div key={step.n} className="rounded-[20px] p-7 relative" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
-              <div className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-extrabold" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
+            <div key={step.n} className="rounded-[20px] p-8 relative" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
+              <div className="absolute top-6 right-6 w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-extrabold" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
                 {step.n}
               </div>
-              <div className="text-[40px] mb-4">{step.icon}</div>
-              <h3 className="m-0 text-[16px] font-extrabold mb-2" style={{ color: "#11211B" }}>{step.title}</h3>
-              <p className="m-0 text-[13.5px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>{step.desc}</p>
+              <div className="text-[44px] mb-5">{step.icon}</div>
+              <h3 className="m-0 text-[17px] font-extrabold mb-2" style={{ color: "#11211B" }}>{step.title}</h3>
+              <p className="m-0 text-[14px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>{step.desc}</p>
             </div>
           ))}
         </div>
-        <div className="text-center mt-10">
+        <div className="text-center mt-12">
           <Link
             href="/deposer"
-            className="inline-flex items-center gap-2 text-white rounded-[14px] px-8 py-4 font-extrabold text-[15px] no-underline"
+            className="inline-flex items-center gap-2 text-white rounded-[14px] px-10 py-4 font-extrabold text-[15px] no-underline"
             style={{ background: "#1D9E75", boxShadow: "0 6px 20px rgba(29,158,117,.3)" }}
           >
             Je dépose ma demande gratuitement →
@@ -288,23 +371,23 @@ export default function LandingPage() {
 
       {/* ── Avantages ── */}
       <section style={{ background: "#F4F6F5", borderTop: "1px solid #EAEFED", borderBottom: "1px solid #EAEFED" }}>
-        <div className="max-w-[1100px] mx-auto px-5 py-14">
-          <div className="text-center mb-10">
-            <h2 className="m-0 text-[26px] md:text-[32px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
+        <div className="max-w-[1200px] mx-auto px-6 py-16">
+          <div className="text-center mb-12">
+            <h2 className="m-0 text-[26px] lg:text-[34px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
               Pourquoi choisir MinuteGlass ?
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               { icon: "🆓", title: "Gratuit", desc: "Le service est entièrement gratuit pour les particuliers." },
               { icon: "⚡", title: "Rapide", desc: "Recevez vos premiers appels en moins de 30 minutes." },
               { icon: "📍", title: "Local", desc: "Uniquement des réparateurs proches de chez vous." },
               { icon: "🚐", title: "Déplacement gratuit", desc: "Beaucoup de nos partenaires se déplacent chez vous gratuitement." },
             ].map((a) => (
-              <div key={a.title} className="bg-white rounded-[16px] p-6" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 4px rgba(17,33,27,.04)" }}>
-                <div className="text-[36px] mb-3">{a.icon}</div>
-                <div className="font-extrabold text-[15px] mb-1" style={{ color: "#11211B" }}>{a.title}</div>
-                <div className="text-[13px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>{a.desc}</div>
+              <div key={a.title} className="bg-white rounded-[18px] p-7" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 4px rgba(17,33,27,.04)" }}>
+                <div className="text-[38px] mb-4">{a.icon}</div>
+                <div className="font-extrabold text-[15px] mb-1.5" style={{ color: "#11211B" }}>{a.title}</div>
+                <div className="text-[13.5px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>{a.desc}</div>
               </div>
             ))}
           </div>
@@ -312,23 +395,23 @@ export default function LandingPage() {
       </section>
 
       {/* ── Types d'intervention ── */}
-      <section className="max-w-[1100px] mx-auto px-5 py-14">
-        <div className="text-center mb-10">
-          <h2 className="m-0 text-[24px] md:text-[30px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
+      <section className="max-w-[1200px] mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="m-0 text-[24px] lg:text-[32px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
             Tous types de réparation vitrage
           </h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
             { icon: "🚗", title: "Pare-brise", desc: "Remplacement ou réparation d'impact. Avec ou sans assurance." },
             { icon: "🚙", title: "Vitres latérales", desc: "Vitre avant, arrière, custode. Toutes marques." },
             { icon: "🚕", title: "Lunette arrière", desc: "Remplacement complet avec dégivrage si nécessaire." },
           ].map((t) => (
-            <div key={t.title} className="rounded-[18px] p-6 flex gap-4" style={{ border: "1.5px solid #EAEFED" }}>
-              <div className="text-[36px] flex-shrink-0">{t.icon}</div>
+            <div key={t.title} className="rounded-[18px] p-7 flex gap-5 items-start" style={{ border: "1.5px solid #EAEFED" }}>
+              <div className="text-[40px] flex-shrink-0">{t.icon}</div>
               <div>
-                <div className="font-extrabold text-[15px] mb-1" style={{ color: "#11211B" }}>{t.title}</div>
-                <div className="text-[13px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>{t.desc}</div>
+                <div className="font-extrabold text-[15px] mb-1.5" style={{ color: "#11211B" }}>{t.title}</div>
+                <div className="text-[13.5px] font-medium leading-relaxed" style={{ color: "#6B7280" }}>{t.desc}</div>
               </div>
             </div>
           ))}
@@ -336,9 +419,9 @@ export default function LandingPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="max-w-[700px] mx-auto px-5 py-14">
-        <div className="text-center mb-10">
-          <h2 className="m-0 text-[24px] md:text-[30px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
+      <section className="max-w-[760px] mx-auto px-6 py-16">
+        <div className="text-center mb-12">
+          <h2 className="m-0 text-[24px] lg:text-[32px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
             Questions fréquentes
           </h2>
         </div>
@@ -385,40 +468,43 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA final ── */}
-      <section className="max-w-[1100px] mx-auto px-5 pb-10">
-        <div className="rounded-[24px] p-10 md:p-14 text-center text-white" style={{ background: "linear-gradient(150deg, #0F5C44, #1D9E75)", boxShadow: "0 12px 40px rgba(15,92,68,.22)" }}>
-          <h2 className="m-0 text-[24px] md:text-[32px] font-extrabold mb-3">Prêt à recevoir des devis ?</h2>
-          <p className="m-0 text-[15px] font-medium mb-7" style={{ color: "rgba(255,255,255,.8)" }}>
+      <section className="max-w-[1200px] mx-auto px-6 pb-14">
+        <div
+          className="rounded-[28px] px-10 py-16 lg:py-20 text-center text-white"
+          style={{ background: "linear-gradient(150deg, #0F5C44, #1D9E75)", boxShadow: "0 12px 48px rgba(15,92,68,.22)" }}
+        >
+          <h2 className="m-0 text-[24px] lg:text-[38px] font-extrabold mb-4 tracking-tight">Prêt à recevoir des devis ?</h2>
+          <p className="m-0 text-[15px] lg:text-[16px] font-medium mb-8" style={{ color: "rgba(255,255,255,.8)", maxWidth: 480, margin: "0 auto 32px" }}>
             Décrivez votre problème en 2 minutes. Réponse des réparateurs en moins de 30 min.
           </p>
           <Link
             href="/deposer"
-            className="inline-flex items-center gap-2 rounded-[14px] px-8 py-4 font-extrabold text-[16px] no-underline"
+            className="inline-flex items-center gap-2 rounded-[14px] px-10 py-4 font-extrabold text-[16px] no-underline"
             style={{ background: "#fff", color: "#0F5C44", boxShadow: "0 6px 20px rgba(0,0,0,.15)" }}
           >
-            Déposer ma demande — c'est gratuit →
+            Déposer ma demande — c&apos;est gratuit →
           </Link>
         </div>
       </section>
 
       {/* ── Section réparateurs ── */}
       <section style={{ background: "#11211B" }}>
-        <div className="max-w-[1100px] mx-auto px-5 py-14 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="max-w-[1200px] mx-auto px-6 py-16 flex flex-col lg:flex-row items-center justify-between gap-10">
           <div>
-            <div className="text-[12.5px] font-bold uppercase tracking-wider mb-3" style={{ color: "#1D9E75" }}>
+            <div className="text-[12px] font-bold uppercase tracking-wider mb-3" style={{ color: "#1D9E75" }}>
               Pour les professionnels
             </div>
-            <h2 className="m-0 text-[22px] md:text-[28px] font-extrabold text-white mb-3">
+            <h2 className="m-0 text-[22px] lg:text-[30px] font-extrabold text-white mb-3">
               Vous êtes professionnel du vitrage ?
             </h2>
-            <p className="m-0 text-[14.5px] font-medium" style={{ color: "rgba(255,255,255,.6)", maxWidth: "480px", lineHeight: 1.6 }}>
+            <p className="m-0 text-[14.5px] font-medium leading-relaxed" style={{ color: "rgba(255,255,255,.6)", maxWidth: 520 }}>
               Accédez aux demandes clients de votre zone et développez votre activité. Payez uniquement pour les contacts qui vous intéressent.
             </p>
           </div>
           <div className="flex-shrink-0">
             <Link
               href="/partenaire"
-              className="inline-flex items-center gap-2 rounded-[14px] px-7 py-4 font-extrabold text-[15px] no-underline whitespace-nowrap"
+              className="inline-flex items-center gap-2 rounded-[14px] px-8 py-4 font-extrabold text-[15px] no-underline whitespace-nowrap"
               style={{ background: "#1D9E75", color: "#fff", boxShadow: "0 6px 20px rgba(29,158,117,.35)" }}
             >
               Rejoindre le réseau →
