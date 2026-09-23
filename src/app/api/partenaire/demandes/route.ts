@@ -24,11 +24,27 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("demandes")
-    .select("id, title, city, intervention, insurance, damage, availability, status, created_at, phone, email")
+    .select("id, title, city, intervention, insurance, damage, availability, status, created_at, phone, email, client_id")
     .in("status", ["active", "booked"])
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Pour les demandes débloquées sans phone/email, cherche dans les profils clients
+  const missingClientIds = (data ?? [])
+    .filter((d) => unlockedIds.has(d.id) && (!d.phone || !d.email) && d.client_id)
+    .map((d) => d.client_id as string);
+
+  let profileMap: Record<string, { phone: string; email: string }> = {};
+  if (missingClientIds.length > 0) {
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, phone, email")
+      .in("id", missingClientIds);
+    for (const p of profiles ?? []) {
+      profileMap[p.id] = { phone: p.phone ?? "", email: p.email ?? "" };
+    }
+  }
 
   const demandes = (data ?? []).map((d) => {
     const diffMs = Date.now() - new Date(d.created_at).getTime();
@@ -36,6 +52,9 @@ export async function GET(req: NextRequest) {
     const diffD = Math.floor(diffH / 24);
     const age = diffH < 1 ? "À l'instant" : diffH < 24 ? `Il y a ${diffH}h` : `Il y a ${diffD}j`;
     const isUnlocked = unlockedIds.has(d.id);
+
+    const phone = d.phone || profileMap[d.client_id]?.phone || "";
+    const email = d.email || profileMap[d.client_id]?.email || "";
 
     return {
       id:           d.id,
@@ -49,8 +68,8 @@ export async function GET(req: NextRequest) {
       availability: d.availability ?? "À définir",
       status:       d.status,
       isUnlocked,
-      phone:        isUnlocked ? (d.phone ?? "") : "●●● ●●● ●●●●",
-      email:        isUnlocked ? (d.email ?? "") : "●●●●●@●●●●●.●●●",
+      phone:        isUnlocked ? phone : "●●● ●●● ●●●●",
+      email:        isUnlocked ? email : "●●●●●@●●●●●.●●●",
     };
   });
 
