@@ -522,19 +522,19 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
                       <span className="font-bold text-[15px]">{demande.clientName}</span>
                     </div>
                   )}
-                  <a href={`tel:${(contacts?.phone ?? demande.phone ?? "").replace(/\s/g, "")}`}
+                  <a href={`tel:${(contacts?.phone ?? "").replace(/\s/g, "")}`}
                     className="no-underline flex items-center gap-3 rounded-[11px] px-3.5 py-3 font-bold text-[13.5px] transition-colors hover:bg-[#E8F6F0]"
                     style={{ background: "#F4F6F5", color: "#0F5C44" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2a11.5 11.5 0 003.6.7c.6 0 1 .4 1 1V19c0 .6-.4 1-1 1A17 17 0 013 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.7 3.6.1.3 0 .7-.2 1l-2.4 2.2Z" stroke="#1D9E75" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    {contacts?.phone ?? demande.phone ?? "—"}
+                    {contacts?.phone || "—"}
                   </a>
-                  <a href={`mailto:${contacts?.email ?? demande.email ?? ""}`}
+                  <a href={`mailto:${contacts?.email ?? ""}`}
                     className="no-underline flex items-center gap-3 rounded-[11px] px-3.5 py-3 font-bold text-[13.5px] transition-colors hover:bg-[#E8F6F0]"
                     style={{ background: "#F4F6F5", color: "#0F5C44" }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="#1D9E75" strokeWidth="1.8"/><path d="M22 6l-10 7L2 6" stroke="#1D9E75" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                    {contacts?.email ?? demande.email ?? "—"}
+                    {contacts?.email || "—"}
                   </a>
                   <button
                     onClick={() => setChatOpen(true)}

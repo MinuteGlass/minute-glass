@@ -74,15 +74,29 @@ export async function POST(req: NextRequest) {
   if (existing) {
     const { data: demande } = await supabaseAdmin
       .from("demandes")
-      .select("phone, email")
+      .select("phone, email, client_id")
       .eq("id", demandeId)
       .single();
+
+    let phone: string | null = demande?.phone ?? null;
+    let email: string | null = demande?.email ?? null;
+
+    if ((!phone || !email) && demande?.client_id) {
+      const { data: clientProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("phone, email")
+        .eq("id", demande.client_id)
+        .single();
+      phone = phone || clientProfile?.phone || null;
+      email = email || clientProfile?.email || null;
+    }
+
     return NextResponse.json({
       ok: true,
       alreadyUnlocked: true,
       tokens: profile.tokens,
-      phone: demande?.phone ?? null,
-      email: demande?.email ?? null,
+      phone,
+      email,
     });
   }
 
@@ -111,14 +125,28 @@ export async function POST(req: NextRequest) {
   // Récupère les vraies coordonnées du client
   const { data: demande } = await supabaseAdmin
     .from("demandes")
-    .select("phone, email")
+    .select("phone, email, client_id")
     .eq("id", demandeId)
     .single();
+
+  let phone: string | null = demande?.phone ?? null;
+  let email: string | null = demande?.email ?? null;
+
+  // Fallback : si les coordonnées ne sont pas dans demandes, cherche dans le profil client
+  if ((!phone || !email) && demande?.client_id) {
+    const { data: clientProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("phone, email")
+      .eq("id", demande.client_id)
+      .single();
+    phone = phone || clientProfile?.phone || null;
+    email = email || clientProfile?.email || null;
+  }
 
   return NextResponse.json({
     ok: true,
     tokens: newBalance,
-    phone: demande?.phone ?? null,
-    email: demande?.email ?? null,
+    phone,
+    email,
   });
 }

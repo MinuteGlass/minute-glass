@@ -32,13 +32,33 @@ export async function POST(req: NextRequest) {
 
   const { data: demandes } = await supabaseAdmin
     .from("demandes")
-    .select("id, phone, email")
+    .select("id, phone, email, client_id")
     .in("id", unlockedIds);
+
+  // Pour les demandes sans coordonnées directes, on cherche dans les profils clients
+  const missingClientIds = (demandes ?? [])
+    .filter((d) => !d.phone && !d.email && d.client_id)
+    .map((d) => d.client_id as string);
+
+  let profileMap: Record<string, { phone: string; email: string }> = {};
+  if (missingClientIds.length > 0) {
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, phone, email")
+      .in("id", missingClientIds);
+    for (const p of profiles ?? []) {
+      if (p.phone || p.email) {
+        profileMap[p.id] = { phone: p.phone ?? "", email: p.email ?? "" };
+      }
+    }
+  }
 
   const contacts: Record<string, { phone: string; email: string }> = {};
   for (const d of demandes ?? []) {
-    if (d.phone || d.email) {
-      contacts[d.id] = { phone: d.phone ?? "", email: d.email ?? "" };
+    const phone = d.phone || profileMap[d.client_id]?.phone || "";
+    const email = d.email || profileMap[d.client_id]?.email || "";
+    if (phone || email) {
+      contacts[d.id] = { phone, email };
     }
   }
 
