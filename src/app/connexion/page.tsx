@@ -77,7 +77,7 @@ export default function ConnexionPage() {
     setSocialLoading(provider);
     await supabase.auth.signInWithOAuth({
       provider: provider === "google" ? "google" : "apple",
-      options: { redirectTo: `${window.location.origin}/mes-demandes` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     setSocialLoading(null);
   }
