@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("demandes")
-    .select("id, title, city, intervention, insurance, damage, availability, status, created_at")
+    .select("id, title, city, intervention, insurance, damage, availability, status, estimated_margin, created_at")
     .in("status", ["active", "booked"])
     .order("created_at", { ascending: false });
 
@@ -36,7 +36,8 @@ export async function GET() {
       // Coordonnées jamais exposées publiquement
       phone:        "●●● ●●● ●●●●",
       email:        "●●●●●@●●●●●.●●●",
-      region:       "",
+      region:           "",
+      estimated_margin: d.estimated_margin ?? null,
     };
   });
 

@@ -22,4 +22,5 @@ export interface Demande {
   isLocal?: boolean; /* posted via deposer form */
   region?: string;   /* région administrative */
   photos?: string[]; /* base64 dataUrls */
+  estimated_margin?: number | null; /* marge estimée en € fixée par l'admin */
 }

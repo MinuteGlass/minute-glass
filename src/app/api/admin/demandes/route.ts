@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("demandes")
-    .select("id, title, city, intervention, insurance, damage, availability, status, verified, created_at, client_id")
+    .select("id, title, city, intervention, insurance, damage, availability, status, verified, estimated_margin, created_at, client_id")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
       availability: d.availability ?? "À définir",
       status: d.status ?? "active",
       verified: d.verified ?? false,
+      estimated_margin: d.estimated_margin ?? null,
       age,
       isNew: createdAt > oneWeekAgo,
       unlockCount: unlockCounts[d.id] ?? 0,
@@ -63,12 +64,16 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  const { id, verified } = await req.json();
+  const { id, verified, estimated_margin } = await req.json();
   if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
+
+  const updates: Record<string, unknown> = {};
+  if (verified !== undefined) updates.verified = verified;
+  if (estimated_margin !== undefined) updates.estimated_margin = estimated_margin === "" ? null : Number(estimated_margin);
 
   const { error } = await supabaseAdmin
     .from("demandes")
-    .update({ verified })
+    .update(updates)
     .eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

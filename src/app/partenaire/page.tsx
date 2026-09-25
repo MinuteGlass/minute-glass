@@ -563,6 +563,12 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                   {tokenCost(d.intervention, d.insurance)} jeton{tokenCost(d.intervention, d.insurance) > 1 ? "s" : ""}
                 </span>
                 <span className="rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: interv.bg, color: interv.color }}>{interv.label}</span>
+                {d.estimated_margin != null && (
+                  <span className="inline-flex items-center gap-1 rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="#0F5C44" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Marge ~{d.estimated_margin} €
+                  </span>
+                )}
                 {d.isNew && !isOtherWin && !isMyWin && (
                   <span className="rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#FDE8E8", color: "#D8302F" }}>Nouveau</span>
                 )}

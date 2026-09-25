@@ -16,6 +16,7 @@ interface AdminDemande {
   isNew: boolean;
   unlockCount: number;
   verified: boolean;
+  estimated_margin: number | null;
 }
 
 /* ─── Types ─── */
@@ -333,6 +334,18 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
     }).catch(() => {});
   }
 
+  async function saveMargin(d: AdminDemande, margin: string) {
+    const token = sessionStorage.getItem("mg_admin_token") ?? "";
+    const val = margin === "" ? null : Number(margin);
+    setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, estimated_margin: val } : x));
+    if (selected?.id === d.id) setSelected(prev => prev ? { ...prev, estimated_margin: val } : null);
+    await fetch("/api/admin/demandes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-token": token },
+      body: JSON.stringify({ id: d.id, estimated_margin: margin }),
+    }).catch(() => {});
+  }
+
   const filtered = useMemo(() => {
     return demandes.filter(d => {
       const matchSearch = !search || d.title.toLowerCase().includes(search.toLowerCase()) || d.city.toLowerCase().includes(search.toLowerCase());
@@ -453,6 +466,23 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                     <span className="text-[13px] font-semibold text-right" style={{ color: "#11211B" }}>{value}</span>
                   </div>
                 ))}
+                {/* Marge estimée */}
+                <div className="flex justify-between items-center gap-4 pt-2" style={{ borderTop: "1px solid #EAEFED" }}>
+                  <span className="text-[12.5px] font-bold flex-shrink-0" style={{ color: "#9aa39e", minWidth: 110 }}>Marge estimée</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="ex : 350"
+                      defaultValue={selected.estimated_margin ?? ""}
+                      onBlur={(e) => saveMargin(selected, e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold outline-none w-[100px] text-right"
+                      style={{ border: "1px solid #EAEFED" }}
+                    />
+                    <span className="text-[13px] font-bold" style={{ color: "#6B7280" }}>€</span>
+                  </div>
+                </div>
               </div>
               {/* Footer */}
               <div className="px-6 py-4 flex justify-end" style={{ borderTop: "1px solid #EAEFED" }}>
