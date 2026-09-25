@@ -100,23 +100,17 @@ export default function DeposerPage() {
   async function publish() {
     if (!cgu) return;
 
-    // Assure qu'un compte existe (crée un compte auto si pas connecté)
-    let userId: string | null = getAuth()?.id ?? null;
-    if (!userId) {
-      const tempPassword = crypto.randomUUID();
-      const { error } = await signUp(email, tempPassword, "particulier", prenom);
-      if (!error) {
-        const { data } = await supabase.auth.getUser();
-        userId = data.user?.id ?? null;
-      }
-    }
-
     const title = `${marque === "Autre" ? marqueAutre : marque} ${modele} · ${annee}`;
 
-    // Sauvegarde en base Supabase si connecté
-    if (userId) {
-      await supabase.from("demandes").insert({
-        client_id:    userId,
+    // Sauvegarde via API server-side (supabaseAdmin — contourne les problèmes RLS/session)
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch("/api/demandes/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({
         title,
         city:         `${ville} (${cp})`,
         intervention: intervention ?? "remplacement",
@@ -124,10 +118,10 @@ export default function DeposerPage() {
         damage:       description,
         phone:        tel,
         email,
+        name:         prenom,
         availability: "À définir",
-        status:       "active",
-      });
-    }
+      }),
+    });
 
     // Garde aussi le localStorage pour la session en cours
     addLocalDemande({
