@@ -79,6 +79,8 @@ export default function DeposerPage() {
   const [email, setEmail] = useState("");
   const [rdvDate, setRdvDate] = useState("");
   const [rdvSlot, setRdvSlot] = useState("");
+  const [lieuType, setLieuType] = useState<"domicile" | "travail" | "">("");
+  const [lieuAdresse, setLieuAdresse] = useState("");
 
   /* Step 4 — Compte */
   const [password, setPassword] = useState("");
@@ -93,7 +95,7 @@ export default function DeposerPage() {
   const canStep1 = marqueValid && modele.trim() !== "" && ville.trim() !== "" && cpValid && plaqueValid && insurance !== null;
   const canStep2 = intervention !== null && description.trim().length >= 10;
   const telDigits = tel.replace(/\D/g, "");
-  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@") && rdvDate !== "" && rdvSlot !== "";
+  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@") && rdvDate !== "" && rdvSlot !== "" && lieuType !== "" && lieuAdresse.trim().length >= 5;
   const canStep4 = cgu && (alreadyAuth || password.length >= 6);
 
   function next() { if (step < 4) setStep((s) => (s + 1) as Step); }
@@ -153,12 +155,12 @@ export default function DeposerPage() {
         phone:        tel,
         email,
         name:         prenom,
-        availability: rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot}` : "À définir",
+        availability: rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot} · ${lieuType === "domicile" ? "Domicile" : "Lieu de travail"} : ${lieuAdresse}` : "À définir",
       }),
     });
 
     // Garde aussi le localStorage pour la session en cours
-    const rdvLabel = rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot}` : "À définir";
+    const rdvLabel = rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot} · ${lieuType === "domicile" ? "Domicile" : "Lieu de travail"} : ${lieuAdresse}` : "À définir";
     addLocalDemande({
       id:           `local-${Date.now()}`,
       title,
@@ -468,6 +470,41 @@ export default function DeposerPage() {
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com"
                 className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none"
                 style={{ border: "1px solid #EAEFED" }} />
+              {/* Lieu d'intervention */}
+              <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
+                <div className="font-bold text-[14px] mb-1">Lieu d'intervention <span style={{ color: "#D85A30" }}>*</span></div>
+                <p className="text-[12.5px] m-0 mb-3" style={{ color: "#6B7280" }}>Le réparateur se déplace à votre domicile ou sur votre lieu de travail.</p>
+                <div className="flex gap-2.5 mb-3">
+                  {([
+                    { value: "domicile", label: "🏠 Domicile" },
+                    { value: "travail",  label: "🏢 Lieu de travail" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setLieuType(opt.value)}
+                      className="flex-1 rounded-[10px] py-2.5 text-[13px] font-bold border-0 cursor-pointer transition-all"
+                      style={lieuType === opt.value
+                        ? { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
+                        : { background: "#fff", color: "#3d4b44", border: "1px solid #EAEFED" }
+                      }
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {lieuType && (
+                  <input
+                    type="text"
+                    value={lieuAdresse}
+                    onChange={(e) => setLieuAdresse(e.target.value)}
+                    placeholder={lieuType === "domicile" ? "12 rue des Lilas, 75011 Paris" : "25 avenue de la Gare, 69001 Lyon"}
+                    className="w-full rounded-[11px] px-3.5 py-3 text-[14px] font-medium outline-none"
+                    style={{ border: "1px solid #EAEFED", background: "#fff" }}
+                  />
+                )}
+              </div>
+
               {/* Calendrier RDV */}
               <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
                 <div className="font-bold text-[14px] mb-1">Date du rendez-vous <span style={{ color: "#D85A30" }}>*</span></div>
@@ -543,6 +580,7 @@ export default function DeposerPage() {
                     { label: "Intervention", value: INTERV_LABELS[intervention ?? "remplacement"] },
                     { label: "Assurance", value: insurance === "oui" ? "Oui, assuré" : "Non / ne sais pas" },
                     { label: "RDV", value: rdvDate && rdvSlot ? `${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · ${rdvSlot}` : "—" },
+                    { label: "Lieu", value: lieuType ? `${lieuType === "domicile" ? "Domicile" : "Travail"} — ${lieuAdresse}` : "—" },
                   ].map((row) => (
                     <div key={row.label}>
                       <div className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "#9aa39e" }}>{row.label}</div>
