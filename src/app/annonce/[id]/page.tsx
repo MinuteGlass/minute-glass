@@ -342,7 +342,7 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
         }
         const counts: Record<string, number> = JSON.parse(localStorage.getItem("mg_unlock_counts") ?? "{}");
         const attributed: string[] = JSON.parse(localStorage.getItem("mg_attributed") ?? "[]");
-        setIsBlocked((counts[found.id] ?? 0) >= 4 || attributed.includes(found.id));
+        setIsBlocked((counts[found.id] ?? 0) >= 1 || attributed.includes(found.id));
       } catch {}
     }).catch(() => router.replace("/"));
   }, [id, router]);

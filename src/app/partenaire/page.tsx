@@ -518,7 +518,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
         const isOtherWin     = attributedElsewhere.has(d.id);
         const unlockCount    = globalUnlockCounts[d.id] ?? 0;
         const isAttributed   = isMyWin || isOtherWin;
-        const isFull         = unlockCount >= 4;
+        const isFull         = unlockCount >= 1 && !isUnlocked;
 
         return (
           <article
@@ -632,7 +632,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                   {isFull ? (
                     <span className="inline-flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 font-bold text-[12.5px] whitespace-nowrap" style={{ background: "#F4F6F5", color: "#9aa39e" }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#9aa39e" strokeWidth="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="#9aa39e" strokeWidth="2" strokeLinecap="round"/></svg>
-                      Complet — 4/4 réparateurs
+                      Lead exclusif — déjà pris
                     </span>
                   ) : (
                     <button

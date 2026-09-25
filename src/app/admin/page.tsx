@@ -364,7 +364,7 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
 
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid #EAEFED" }}>
         <div className="grid px-5 py-3 text-[11.5px] font-extrabold uppercase tracking-wider" style={{ gridTemplateColumns: "50px 1fr 140px 120px 100px 90px 90px 100px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
-          <span>ID</span><span>Véhicule</span><span>Ville</span><span>Type</span><span>Assurance</span><span>Publié</span><span>Déblocages</span><span>Actions</span>
+          <span>ID</span><span>Véhicule</span><span>Ville</span><span>Type</span><span>Assurance</span><span>Publié</span><span>Statut</span><span>Actions</span>
         </div>
         {filtered.map((d, i) => {
           const intervColor = d.intervention === "remplacement" ? { bg: "#EAF1FE", color: "#2563EB" } : d.intervention === "reparation" ? { bg: "#E8F6F0", color: "#1D9E75" } : { bg: "#EDE9FE", color: "#6D28D9" };
@@ -382,8 +382,8 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
                 {d.insurance === "avec" ? "Assuré" : "Sans"}
               </span>
               <span className="text-[12.5px] font-semibold" style={{ color: "#6B7280" }}>{d.age}</span>
-              <span className="inline-flex items-center gap-1 text-[12.5px] font-extrabold" style={{ color: count >= 4 ? "#B0431F" : count > 0 ? "#0F5C44" : "#9aa39e" }}>
-                {count}/4
+              <span className="inline-flex items-center gap-1 text-[12.5px] font-extrabold" style={{ color: count >= 1 ? "#0F5C44" : "#9aa39e" }}>
+                {count >= 1 ? "Pris" : "Libre"}
               </span>
               <div className="flex gap-1.5">
                 <button onClick={() => setSelected(d)} className="rounded-[8px] px-2.5 py-1.5 text-[11.5px] font-bold border-0 cursor-pointer" style={{ background: "#E8F6F0", color: "#0F5C44" }}>Voir</button>
@@ -407,7 +407,7 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
           { label: "Assurance",     value: selected.insurance === "avec" ? "Oui — tous risques" : "Non" },
           { label: "Disponibilité", value: selected.availability },
           { label: "Publié",        value: selected.age },
-          { label: "Déblocages",    value: `${count}/4 réparateurs` },
+          { label: "Statut lead",    value: count >= 1 ? "Pris — lead exclusif attribué" : "Libre — disponible" },
         ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }} onClick={() => setSelected(null)}>
@@ -427,7 +427,7 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
                 {rows.filter(r => r.value).map(({ label, value }) => (
                   <div key={label} className="flex justify-between items-start gap-4">
                     <span className="text-[12.5px] font-bold flex-shrink-0" style={{ color: "#9aa39e", minWidth: 110 }}>{label}</span>
-                    <span className="text-[13px] font-semibold text-right" style={{ color: label === "Déblocages" && count >= 4 ? "#B0431F" : "#11211B" }}>{value}</span>
+                    <span className="text-[13px] font-semibold text-right" style={{ color: "#11211B" }}>{value}</span>
                   </div>
                 ))}
               </div>

@@ -59,6 +59,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Solde insuffisant", tokens: profile.tokens }, { status: 402 });
   }
 
+  // Lead exclusif : vérifie si déjà débloqué par quelqu'un d'autre
+  const { count: existingUnlocks } = await supabaseAdmin
+    .from("unlocks")
+    .select("id", { count: "exact", head: true })
+    .eq("demande_id", demandeId)
+    .neq("repairer_id", user.id);
+
+  if ((existingUnlocks ?? 0) >= 1) {
+    return NextResponse.json({ error: "Ce lead exclusif a déjà été débloqué par un autre réparateur.", full: true }, { status: 409 });
+  }
+
   if (demandeMeta?.status === "booked" && demandeMeta?.booked_by !== user.id) {
     return NextResponse.json({ error: "Cette demande a déjà été attribuée à un autre réparateur.", booked: true }, { status: 409 });
   }
