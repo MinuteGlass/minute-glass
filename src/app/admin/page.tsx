@@ -2,7 +2,20 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { DEMANDES } from "@/data/demandes";
+
+interface AdminDemande {
+  id: string;
+  title: string;
+  city: string;
+  intervention: string;
+  insurance: string;
+  damage: string;
+  availability: string;
+  status: string;
+  age: string;
+  isNew: boolean;
+  unlockCount: number;
+}
 
 /* ─── Types ─── */
 type AdminNav = "dashboard" | "demandes" | "particuliers" | "partenaires" | "jetons" | "parametres";
@@ -217,13 +230,13 @@ function KpiCard({ label, value, sub, color = "#1D9E75", icon }: { label: string
 }
 
 /* ─── Dashboard view ─── */
-function DashboardView({ particuliers, partenaires, transactions }: { particuliers: Particulier[]; partenaires: Partenaire[]; transactions: TokenTx[] }) {
+function DashboardView({ particuliers, partenaires, transactions, demandes }: { particuliers: Particulier[]; partenaires: Partenaire[]; transactions: TokenTx[]; demandes: AdminDemande[] }) {
   const revenue = transactions.filter(t => t.statut === "Payé").reduce((acc, t) => {
     const n = parseFloat(t.montant.replace(",", ".").replace(" €", ""));
     return acc + n;
   }, 0);
 
-  const recentDemandes = [...DEMANDES].slice(0, 5);
+  const recentDemandes = demandes.slice(0, 5);
 
   return (
     <div>
@@ -234,7 +247,7 @@ function DashboardView({ particuliers, partenaires, transactions }: { particulie
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-        <KpiCard label="Demandes" value={String(DEMANDES.length)} sub={`+${DEMANDES.filter(d => d.isNew).length} cette semaine`} color="#2563EB"
+        <KpiCard label="Demandes" value={String(demandes.length)} sub={`+${demandes.filter(d => d.isNew).length} cette semaine`} color="#2563EB"
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>} />
         <KpiCard label="Particuliers" value={String(particuliers.length)} sub={`${particuliers.filter(u => u.statut === "actif").length} actifs`} color="#1D9E75"
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>} />
@@ -299,32 +312,24 @@ function DashboardView({ particuliers, partenaires, transactions }: { particulie
 }
 
 /* ─── Demandes view ─── */
-function DemandesAdminView() {
+function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
   const [search, setSearch] = useState("");
   const [filterIntervention, setFilterIntervention] = useState("toutes");
-  const [unlockCounts, setUnlockCounts] = useState<Record<string, number>>({});
-  const [selected, setSelected] = useState<(typeof DEMANDES)[0] | null>(null);
-
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem("mg_unlock_counts");
-      if (v) setUnlockCounts(JSON.parse(v));
-    } catch {}
-  }, []);
+  const [selected, setSelected] = useState<AdminDemande | null>(null);
 
   const filtered = useMemo(() => {
-    return DEMANDES.filter(d => {
+    return demandes.filter(d => {
       const matchSearch = !search || d.title.toLowerCase().includes(search.toLowerCase()) || d.city.toLowerCase().includes(search.toLowerCase());
       const matchInterv = filterIntervention === "toutes" || d.intervention === filterIntervention;
       return matchSearch && matchInterv;
     });
-  }, [search, filterIntervention]);
+  }, [search, filterIntervention, demandes]);
 
   return (
     <div>
       <div className="mb-5">
         <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Demandes</h1>
-        <p className="m-0 mt-1 text-[14px] font-medium" style={{ color: "#6B7280" }}>{DEMANDES.length} demandes au total sur la plateforme.</p>
+        <p className="m-0 mt-1 text-[14px] font-medium" style={{ color: "#6B7280" }}>{demandes.length} demandes au total sur la plateforme.</p>
       </div>
 
       {/* Filters */}
@@ -364,14 +369,13 @@ function DemandesAdminView() {
         {filtered.map((d, i) => {
           const intervColor = d.intervention === "remplacement" ? { bg: "#EAF1FE", color: "#2563EB" } : d.intervention === "reparation" ? { bg: "#E8F6F0", color: "#1D9E75" } : { bg: "#EDE9FE", color: "#6D28D9" };
           const intervLabel = d.intervention === "remplacement" ? "Remplacement" : d.intervention === "reparation" ? "Réparation" : "Vitre";
-          const count = unlockCounts[d.id] ?? 0;
+          const count = d.unlockCount ?? 0;
           return (
             <div key={d.id} className="grid items-center px-5 py-3.5" style={{ gridTemplateColumns: "50px 1fr 140px 120px 100px 90px 90px 100px", borderBottom: i < filtered.length - 1 ? "1px solid #EAEFED" : undefined }}>
               <span className="text-[12px] font-bold" style={{ color: "#9aa39e" }}>#{d.id}</span>
               <div>
                 <div className="font-bold text-[13.5px]">{d.title}</div>
-                {d.clientName && <div className="text-[11.5px] font-semibold" style={{ color: "#6B7280" }}>{d.clientName}</div>}
-              </div>
+                </div>
               <span className="text-[13px] font-semibold">{d.city}</span>
               <span className="inline-flex text-[11.5px] font-bold rounded-full px-2.5 py-1 w-fit" style={{ background: intervColor.bg, color: intervColor.color }}>{intervLabel}</span>
               <span className="inline-flex text-[11.5px] font-bold rounded-full px-2.5 py-1 w-fit" style={{ background: d.insurance === "avec" ? "#E8F6F0" : "#FCEDE7", color: d.insurance === "avec" ? "#0F5C44" : "#B0431F" }}>
@@ -393,20 +397,16 @@ function DemandesAdminView() {
       {/* ── Modal fiche ── */}
       {selected && (() => {
         const intervLabel = selected.intervention === "remplacement" ? "Remplacement pare-brise" : selected.intervention === "reparation" ? "Réparation d'impact" : "Vitre latérale / lunette";
-        const count = unlockCounts[selected.id] ?? 0;
+        const count = selected.unlockCount ?? 0;
         const rows: { label: string; value: string | undefined }[] = [
           { label: "ID",            value: `#${selected.id}` },
           { label: "Véhicule",      value: selected.title },
           { label: "Ville",         value: selected.city },
           { label: "Type",          value: intervLabel },
-          { label: "Zone touchée",  value: selected.damageZone },
           { label: "Description",   value: selected.damage },
           { label: "Assurance",     value: selected.insurance === "avec" ? "Oui — tous risques" : "Non" },
           { label: "Disponibilité", value: selected.availability },
           { label: "Publié",        value: selected.age },
-          { label: "Client",        value: selected.clientName },
-          { label: "Téléphone",     value: selected.phone },
-          { label: "Email",         value: selected.email },
           { label: "Déblocages",    value: `${count}/4 réparateurs` },
         ];
         return (
@@ -430,16 +430,6 @@ function DemandesAdminView() {
                     <span className="text-[13px] font-semibold text-right" style={{ color: label === "Déblocages" && count >= 4 ? "#B0431F" : "#11211B" }}>{value}</span>
                   </div>
                 ))}
-                {selected.photos && selected.photos.length > 0 && (
-                  <div className="mt-2">
-                    <span className="text-[12.5px] font-bold block mb-2" style={{ color: "#9aa39e" }}>Photos</span>
-                    <div className="flex gap-2 flex-wrap">
-                      {selected.photos.map((src, i) => (
-                        <img key={i} src={src} alt="" className="w-24 h-24 object-cover rounded-[10px]" />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               {/* Footer */}
               <div className="px-6 py-4 flex justify-end" style={{ borderTop: "1px solid #EAEFED" }}>
@@ -881,6 +871,7 @@ export default function AdminPage() {
   const [nav, setNav]           = useState<AdminNav>("dashboard");
   const [particuliers, setParticuliers] = useState<Particulier[]>(PARTICULIERS_SEED);
   const [partenaires, setPartenaires]   = useState<Partenaire[]>(PARTENAIRES_SEED);
+  const [demandes, setDemandes]         = useState<AdminDemande[]>([]);
   const transactions = TOKENS_SEED;
 
   // Restore session from sessionStorage on mount
@@ -893,6 +884,14 @@ export default function AdminPage() {
   useEffect(() => {
     if (!loggedIn) return;
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
+
+    fetch("/api/admin/demandes", { headers: { "x-admin-token": token } })
+      .then(r => r.json())
+      .then(({ demandes: real }) => {
+        if (!Array.isArray(real)) return;
+        setDemandes(real);
+      })
+      .catch(() => {});
 
     fetch("/api/admin/partenaires", { headers: { "x-admin-token": token } })
       .then(r => r.json())
@@ -973,8 +972,8 @@ export default function AdminPage() {
       <div className="max-w-[1320px] mx-auto px-6 flex gap-6">
         <AdminSidebar active={nav} onChange={setNav} pendingCount={pendingCount} />
         <main className="flex-1 min-w-0 py-6 pb-16">
-          {nav === "dashboard"   && <DashboardView particuliers={particuliers} partenaires={partenaires} transactions={transactions} />}
-          {nav === "demandes"    && <DemandesAdminView />}
+          {nav === "dashboard"   && <DashboardView particuliers={particuliers} partenaires={partenaires} transactions={transactions} demandes={demandes} />}
+          {nav === "demandes"    && <DemandesAdminView demandes={demandes} />}
           {nav === "particuliers" && <ParticuliersView users={particuliers} setUsers={setParticuliers} />}
           {nav === "partenaires" && <PartenairesView partenaires={partenaires} setPartenaires={setPartenaires} />}
           {nav === "jetons"      && <JetonsView transactions={transactions} />}
