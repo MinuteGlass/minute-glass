@@ -77,6 +77,8 @@ export default function DeposerPage() {
   const [prenom, setPrenom] = useState("");
   const [tel, setTel] = useState("");
   const [email, setEmail] = useState("");
+  const [rdvDate, setRdvDate] = useState("");
+  const [rdvSlot, setRdvSlot] = useState("");
 
   /* Step 4 — Compte */
   const [password, setPassword] = useState("");
@@ -91,11 +93,43 @@ export default function DeposerPage() {
   const canStep1 = marqueValid && modele.trim() !== "" && ville.trim() !== "" && cpValid && plaqueValid && insurance !== null;
   const canStep2 = intervention !== null && description.trim().length >= 10;
   const telDigits = tel.replace(/\D/g, "");
-  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@");
+  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@") && rdvDate !== "" && rdvSlot !== "";
   const canStep4 = cgu && (alreadyAuth || password.length >= 6);
 
   function next() { if (step < 4) setStep((s) => (s + 1) as Step); }
   function prev() { if (step > 1) setStep((s) => (s - 1) as Step); }
+
+  /* Dates disponibles — pas le jour même, pas le weekend, vendredi → à partir de mardi */
+  const availableDates = (() => {
+    const dates: { value: string; label: string }[] = [];
+    const now = new Date();
+    const todayDay = now.getDay(); // 0=dim, 1=lun … 5=ven, 6=sam
+    let daysToSkip = 1; // au minimum lendemain
+    if (todayDay === 4) daysToSkip = 4; // jeudi → lundi
+    if (todayDay === 5) daysToSkip = 4; // vendredi → mardi
+    if (todayDay === 6) daysToSkip = 3; // samedi → mardi
+    let added = 0;
+    let offset = daysToSkip;
+    while (added < 14) {
+      const d = new Date(now);
+      d.setDate(now.getDate() + offset);
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) { // pas weekend
+        const iso = d.toISOString().split("T")[0];
+        const label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+        dates.push({ value: iso, label: label.charAt(0).toUpperCase() + label.slice(1) });
+        added++;
+      }
+      offset++;
+    }
+    return dates;
+  })();
+
+  const RDV_SLOTS = [
+    { value: "08h00 - 10h00", label: "8h00 – 10h00" },
+    { value: "10h00 - 12h00", label: "10h00 – 12h00" },
+    { value: "16h00 - 18h00", label: "16h00 – 18h00" },
+  ];
 
   async function publish() {
     if (!cgu) return;
@@ -119,11 +153,12 @@ export default function DeposerPage() {
         phone:        tel,
         email,
         name:         prenom,
-        availability: "À définir",
+        availability: rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot}` : "À définir",
       }),
     });
 
     // Garde aussi le localStorage pour la session en cours
+    const rdvLabel = rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot}` : "À définir";
     addLocalDemande({
       id:           `local-${Date.now()}`,
       title,
@@ -138,7 +173,7 @@ export default function DeposerPage() {
       clientName:   prenom,
       phone:        tel,
       email,
-      availability: "À définir",
+      availability: rdvLabel,
       photos:       photos.map((p) => p.dataUrl),
     });
 
@@ -433,6 +468,48 @@ export default function DeposerPage() {
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com"
                 className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none"
                 style={{ border: "1px solid #EAEFED" }} />
+              {/* Calendrier RDV */}
+              <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
+                <div className="font-bold text-[14px] mb-1">Date du rendez-vous <span style={{ color: "#D85A30" }}>*</span></div>
+                <p className="text-[12.5px] m-0 mb-3" style={{ color: "#6B7280" }}>Le réparateur interviendra à cette date. Choisissez un créneau qui vous convient.</p>
+                <select
+                  value={rdvDate}
+                  onChange={(e) => setRdvDate(e.target.value)}
+                  className="w-full rounded-[11px] px-3.5 py-3 text-[14px] font-semibold outline-none mb-3"
+                  style={{ border: `1px solid ${rdvDate ? "#1D9E75" : "#EAEFED"}`, background: "#fff", color: rdvDate ? "#11211B" : "#9aa39e" }}
+                >
+                  <option value="">Choisir une date…</option>
+                  {availableDates.map((d) => (
+                    <option key={d.value} value={d.value}>{d.label}</option>
+                  ))}
+                </select>
+                <div className="font-bold text-[13px] mb-2">Créneau horaire <span style={{ color: "#D85A30" }}>*</span></div>
+                <div className="grid grid-cols-3 gap-2">
+                  {RDV_SLOTS.map((slot) => (
+                    <button
+                      key={slot.value}
+                      type="button"
+                      onClick={() => setRdvSlot(slot.value)}
+                      className="rounded-[10px] py-2.5 text-[13px] font-bold border-0 cursor-pointer transition-all"
+                      style={rdvSlot === slot.value
+                        ? { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
+                        : { background: "#fff", color: "#3d4b44", border: "1px solid #EAEFED" }
+                      }
+                    >
+                      {slot.label}
+                    </button>
+                  ))}
+                </div>
+                {rdvDate && rdvSlot && (
+                  <div className="mt-3 rounded-[9px] px-3 py-2.5 flex items-center gap-2" style={{ background: "#E8F6F0" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#0F5C44" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <span className="text-[12.5px] font-bold" style={{ color: "#0F5C44" }}>
+                      RDV prévu le {new Date(rdvDate).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} · {rdvSlot}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="mt-4 rounded-[12px] p-3.5 flex items-start gap-3" style={{ background: "#F4F6F5" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#1D9E75" strokeWidth="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="#1D9E75" strokeWidth="2"/></svg>
                 <p className="text-[12.5px] font-semibold leading-relaxed m-0" style={{ color: "#6B7280" }}>
@@ -465,6 +542,7 @@ export default function DeposerPage() {
                     { label: "Localisation", value: `${ville} (${cp})` },
                     { label: "Intervention", value: INTERV_LABELS[intervention ?? "remplacement"] },
                     { label: "Assurance", value: insurance === "oui" ? "Oui, assuré" : "Non / ne sais pas" },
+                    { label: "RDV", value: rdvDate && rdvSlot ? `${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · ${rdvSlot}` : "—" },
                   ].map((row) => (
                     <div key={row.label}>
                       <div className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "#9aa39e" }}>{row.label}</div>

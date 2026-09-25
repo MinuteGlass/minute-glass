@@ -561,6 +561,12 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
               </div>
               <div className="font-extrabold text-[15px]">{d.title}</div>
               <div className="text-[12.5px] font-semibold mt-0.5" style={{ color: "#6B7280" }}>{d.city} · {d.distance} · {d.age}</div>
+              {d.availability && d.availability !== "À définir" && (
+                <div className="mt-1 inline-flex items-center gap-1.5 rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#EAF1FE", color: "#2563EB" }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#2563EB" strokeWidth="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="#2563EB" strokeWidth="2" strokeLinecap="round"/></svg>
+                  {d.availability}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
