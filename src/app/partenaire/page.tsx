@@ -566,7 +566,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                 {d.margin_prix != null && (() => {
                   const TOKEN_PRICE_EUR = 10;
                   const tc = tokenCost(d.intervention, d.insurance);
-                  const nette = (d.margin_prix ?? 0) - (d.margin_franchise ?? 0) - (d.margin_pieces ?? 0) - (d.margin_mo ?? 0) - tc * TOKEN_PRICE_EUR;
+                  const nette = (d.margin_prix ?? 0) - (d.margin_franchise ?? 0) - (d.margin_pieces ?? 0) - tc * TOKEN_PRICE_EUR;
                   return (
                     <span className="inline-flex items-center gap-1 rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="#0F5C44" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>

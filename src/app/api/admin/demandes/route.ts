@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("demandes")
-    .select("id, title, city, intervention, insurance, damage, availability, status, verified, margin_prix, margin_franchise, margin_pieces, margin_mo, created_at, client_id")
+    .select("id, title, city, intervention, insurance, damage, availability, status, verified, margin_prix, margin_franchise, margin_pieces, created_at, client_id")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -50,7 +50,6 @@ export async function GET(req: NextRequest) {
       margin_prix:      d.margin_prix ?? null,
       margin_franchise: d.margin_franchise ?? null,
       margin_pieces:    d.margin_pieces ?? null,
-      margin_mo:        d.margin_mo ?? null,
       age,
       isNew: createdAt > oneWeekAgo,
       unlockCount: unlockCounts[d.id] ?? 0,
@@ -67,7 +66,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
-  const { id, verified, margin_prix, margin_franchise, margin_pieces, margin_mo } = await req.json();
+  const { id, verified, margin_prix, margin_franchise, margin_pieces } = await req.json();
   if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
 
   const toNum = (v: unknown) => v === undefined ? undefined : (v === "" || v === null) ? null : Number(v);
@@ -76,7 +75,6 @@ export async function PATCH(req: NextRequest) {
   if (margin_prix !== undefined) updates.margin_prix = toNum(margin_prix);
   if (margin_franchise !== undefined) updates.margin_franchise = toNum(margin_franchise);
   if (margin_pieces !== undefined) updates.margin_pieces = toNum(margin_pieces);
-  if (margin_mo !== undefined) updates.margin_mo = toNum(margin_mo);
 
   const { error } = await supabaseAdmin
     .from("demandes")

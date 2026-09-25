@@ -25,5 +25,4 @@ export interface Demande {
   margin_prix?: number | null;
   margin_franchise?: number | null;
   margin_pieces?: number | null;
-  margin_mo?: number | null;
 }

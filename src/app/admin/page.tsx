@@ -19,7 +19,6 @@ interface AdminDemande {
   margin_prix: number | null;
   margin_franchise: number | null;
   margin_pieces: number | null;
-  margin_mo: number | null;
 }
 
 /* ─── Types ─── */
@@ -337,7 +336,7 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
     }).catch(() => {});
   }
 
-  async function saveMarginField(d: AdminDemande, field: "margin_prix" | "margin_franchise" | "margin_pieces" | "margin_mo", value: string) {
+  async function saveMarginField(d: AdminDemande, field: "margin_prix" | "margin_franchise" | "margin_pieces", value: string) {
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
     const val = value === "" ? null : Number(value);
     setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, [field]: val } : x));
@@ -478,14 +477,12 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                     ? (selected.margin_prix ?? 0)
                       - (selected.margin_franchise ?? 0)
                       - (selected.margin_pieces ?? 0)
-                      - (selected.margin_mo ?? 0)
                       - coutDossier
                     : null;
-                  const marginFields: { key: "margin_prix" | "margin_franchise" | "margin_pieces" | "margin_mo"; label: string; sign: string; placeholder: string }[] = [
-                    { key: "margin_prix",      label: "💰 Prix prestation",       sign: "+", placeholder: "450" },
-                    { key: "margin_franchise",  label: "🎁 Franchise offerte",     sign: "−", placeholder: "150" },
-                    { key: "margin_pieces",     label: "🔩 Coût des pièces",       sign: "−", placeholder: "80"  },
-                    { key: "margin_mo",         label: "🧰 Main d'œuvre",          sign: "−", placeholder: "30"  },
+                  const marginFields: { key: "margin_prix" | "margin_franchise" | "margin_pieces"; label: string; sign: string; placeholder: string }[] = [
+                    { key: "margin_prix",      label: "💰 Prix prestation",          sign: "+", placeholder: "450" },
+                    { key: "margin_franchise",  label: "🎁 Franchise offerte client", sign: "−", placeholder: "150" },
+                    { key: "margin_pieces",     label: "🔩 Coût d'achat pare-brise",  sign: "−", placeholder: "80"  },
                   ];
                   return (
                     <div className="pt-3 mt-1 flex flex-col gap-2" style={{ borderTop: "1px solid #EAEFED" }}>
