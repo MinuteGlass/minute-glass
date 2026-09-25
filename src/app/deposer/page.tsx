@@ -508,7 +508,7 @@ export default function DeposerPage() {
               {/* Calendrier RDV */}
               <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
                 <div className="font-bold text-[14px] mb-1">Date du rendez-vous <span style={{ color: "#D85A30" }}>*</span></div>
-                <p className="text-[12.5px] m-0 mb-3" style={{ color: "#6B7280" }}>Le réparateur interviendra à cette date. Choisissez un créneau qui vous convient.</p>
+                <p className="text-[12.5px] m-0 mb-3" style={{ color: "#6B7280" }}>Indiquez vos préférences. Un agent MinuteGlass vous rappellera pour <strong>confirmer</strong> la date et le créneau définitifs.</p>
                 <select
                   value={rdvDate}
                   onChange={(e) => setRdvDate(e.target.value)}
@@ -545,6 +545,12 @@ export default function DeposerPage() {
                     </span>
                   </div>
                 )}
+                <div className="mt-2.5 rounded-[9px] px-3 py-2.5 flex items-start gap-2" style={{ background: "#FFF7E8" }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10" stroke="#B7791F" strokeWidth="2"/><path d="M12 8v4m0 4h.01" stroke="#B7791F" strokeWidth="2" strokeLinecap="round"/></svg>
+                  <p className="text-[12px] font-semibold m-0 leading-relaxed" style={{ color: "#B7791F" }}>
+                    Date et créneau <strong>provisoires</strong> — un agent vous contactera par téléphone pour confirmer.
+                  </p>
+                </div>
               </div>
 
               <div className="mt-4 rounded-[12px] p-3.5 flex items-start gap-3" style={{ background: "#F4F6F5" }}>
