@@ -16,7 +16,10 @@ interface AdminDemande {
   isNew: boolean;
   unlockCount: number;
   verified: boolean;
-  estimated_margin: number | null;
+  margin_prix: number | null;
+  margin_franchise: number | null;
+  margin_pieces: number | null;
+  margin_mo: number | null;
 }
 
 /* ─── Types ─── */
@@ -334,15 +337,15 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
     }).catch(() => {});
   }
 
-  async function saveMargin(d: AdminDemande, margin: string) {
+  async function saveMarginField(d: AdminDemande, field: "margin_prix" | "margin_franchise" | "margin_pieces" | "margin_mo", value: string) {
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
-    const val = margin === "" ? null : Number(margin);
-    setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, estimated_margin: val } : x));
-    if (selected?.id === d.id) setSelected(prev => prev ? { ...prev, estimated_margin: val } : null);
+    const val = value === "" ? null : Number(value);
+    setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, [field]: val } : x));
+    if (selected?.id === d.id) setSelected(prev => prev ? { ...prev, [field]: val } : null);
     await fetch("/api/admin/demandes", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-admin-token": token },
-      body: JSON.stringify({ id: d.id, estimated_margin: margin }),
+      body: JSON.stringify({ id: d.id, [field]: value }),
     }).catch(() => {});
   }
 
@@ -466,23 +469,59 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                     <span className="text-[13px] font-semibold text-right" style={{ color: "#11211B" }}>{value}</span>
                   </div>
                 ))}
-                {/* Marge estimée */}
-                <div className="flex justify-between items-center gap-4 pt-2" style={{ borderTop: "1px solid #EAEFED" }}>
-                  <span className="text-[12.5px] font-bold flex-shrink-0" style={{ color: "#9aa39e", minWidth: 110 }}>Marge estimée</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="ex : 350"
-                      defaultValue={selected.estimated_margin ?? ""}
-                      onBlur={(e) => saveMargin(selected, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                      className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold outline-none w-[100px] text-right"
-                      style={{ border: "1px solid #EAEFED" }}
-                    />
-                    <span className="text-[13px] font-bold" style={{ color: "#6B7280" }}>€</span>
-                  </div>
-                </div>
+                {/* Détail marge */}
+                {(() => {
+                  const TOKEN_PRICE_EUR = 10; // ~10€/jeton (pack Essentiel)
+                  const tokenCount = selected.intervention === "reparation" || selected.intervention === "vitre" ? 1 : selected.insurance === "avec" ? 3 : 2;
+                  const coutDossier = tokenCount * TOKEN_PRICE_EUR;
+                  const nette = selected.margin_prix != null
+                    ? (selected.margin_prix ?? 0)
+                      - (selected.margin_franchise ?? 0)
+                      - (selected.margin_pieces ?? 0)
+                      - (selected.margin_mo ?? 0)
+                      - coutDossier
+                    : null;
+                  const marginFields: { key: "margin_prix" | "margin_franchise" | "margin_pieces" | "margin_mo"; label: string; sign: string; placeholder: string }[] = [
+                    { key: "margin_prix",      label: "💰 Prix prestation",       sign: "+", placeholder: "450" },
+                    { key: "margin_franchise",  label: "🎁 Franchise offerte",     sign: "−", placeholder: "150" },
+                    { key: "margin_pieces",     label: "🔩 Coût des pièces",       sign: "−", placeholder: "80"  },
+                    { key: "margin_mo",         label: "🧰 Main d'œuvre",          sign: "−", placeholder: "30"  },
+                  ];
+                  return (
+                    <div className="pt-3 mt-1 flex flex-col gap-2" style={{ borderTop: "1px solid #EAEFED" }}>
+                      <div className="text-[11.5px] font-extrabold uppercase tracking-wider mb-1" style={{ color: "#9aa39e" }}>Détail de la marge</div>
+                      {marginFields.map(({ key, label, sign, placeholder }) => (
+                        <div key={key} className="flex justify-between items-center gap-3">
+                          <span className="text-[12.5px] font-semibold" style={{ color: "#3d4b44" }}>{label}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[12px] font-bold" style={{ color: sign === "+" ? "#0F5C44" : "#D85A30" }}>{sign}</span>
+                            <span className="text-[12px] font-bold" style={{ color: "#9aa39e" }}>~</span>
+                            <input
+                              type="number" min={0}
+                              placeholder={placeholder}
+                              defaultValue={(selected[key] as number | null) ?? ""}
+                              onBlur={(e) => saveMarginField(selected, key, e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              className="rounded-[8px] px-2.5 py-1.5 text-[13px] font-bold outline-none w-[80px] text-right"
+                              style={{ border: "1px solid #EAEFED" }}
+                            />
+                            <span className="text-[12px] font-semibold" style={{ color: "#6B7280" }}>€</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center gap-3 mt-1 pt-2 rounded-[9px] px-2 py-1.5" style={{ borderTop: "1px solid #EAEFED", background: "#FAFBFB" }}>
+                        <span className="text-[12.5px] font-semibold" style={{ color: "#3d4b44" }}>🎟️ Coût dossier MinuteGlass</span>
+                        <span className="text-[13px] font-bold" style={{ color: "#6B7280" }}>− ~{coutDossier} €</span>
+                      </div>
+                      <div className="flex justify-between items-center gap-3 rounded-[9px] px-2 py-2" style={{ background: nette != null && nette > 0 ? "#E8F6F0" : "#F4F6F5" }}>
+                        <span className="text-[13px] font-extrabold" style={{ color: "#0F5C44" }}>= Marge nette estimée</span>
+                        <span className="text-[15px] font-extrabold" style={{ color: nette != null ? "#0F5C44" : "#9aa39e" }}>
+                          {nette != null ? `~${nette} €` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {/* Footer */}
               <div className="px-6 py-4 flex justify-end" style={{ borderTop: "1px solid #EAEFED" }}>
