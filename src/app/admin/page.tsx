@@ -16,6 +16,7 @@ interface AdminDemande {
   isNew: boolean;
   unlockCount: number;
   verified: boolean;
+  prix_dossier: number | null;
   margin_prix: number | null;
   margin_franchise: number | null;
   margin_pieces: number | null;
@@ -336,7 +337,7 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
     }).catch(() => {});
   }
 
-  async function saveMarginField(d: AdminDemande, field: "margin_prix" | "margin_franchise" | "margin_pieces", value: string) {
+  async function saveMarginField(d: AdminDemande, field: "prix_dossier" | "margin_prix" | "margin_franchise" | "margin_pieces", value: string) {
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
     const val = value === "" ? null : Number(value);
     setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, [field]: val } : x));
@@ -470,24 +471,23 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                 ))}
                 {/* Détail marge */}
                 {(() => {
-                  const TOKEN_PRICE_EUR = 10; // ~10€/jeton (pack Essentiel)
-                  const tokenCount = selected.intervention === "reparation" || selected.intervention === "vitre" ? 1 : selected.insurance === "avec" ? 3 : 2;
-                  const coutDossier = tokenCount * TOKEN_PRICE_EUR;
-                  const nette = selected.margin_prix != null
+                  const coutDossier = selected.prix_dossier ?? null;
+                  const nette = selected.margin_prix != null && coutDossier != null
                     ? (selected.margin_prix ?? 0)
                       - (selected.margin_franchise ?? 0)
                       - (selected.margin_pieces ?? 0)
                       - coutDossier
                     : null;
-                  const marginFields: { key: "margin_prix" | "margin_franchise" | "margin_pieces"; label: string; sign: string; placeholder: string }[] = [
+                  const allFields: { key: "prix_dossier" | "margin_prix" | "margin_franchise" | "margin_pieces"; label: string; sign: string; placeholder: string }[] = [
                     { key: "margin_prix",      label: "💰 Prix prestation",          sign: "+", placeholder: "450" },
                     { key: "margin_franchise",  label: "🎁 Franchise offerte client", sign: "−", placeholder: "150" },
                     { key: "margin_pieces",     label: "🔩 Coût d'achat pare-brise",  sign: "−", placeholder: "80"  },
+                    { key: "prix_dossier",      label: "🎟️ Prix du dossier MinuteGlass", sign: "−", placeholder: "45"  },
                   ];
                   return (
                     <div className="pt-3 mt-1 flex flex-col gap-2" style={{ borderTop: "1px solid #EAEFED" }}>
                       <div className="text-[11.5px] font-extrabold uppercase tracking-wider mb-1" style={{ color: "#9aa39e" }}>Détail de la marge</div>
-                      {marginFields.map(({ key, label, sign, placeholder }) => (
+                      {allFields.map(({ key, label, sign, placeholder }) => (
                         <div key={key} className="flex justify-between items-center gap-3">
                           <span className="text-[12.5px] font-semibold" style={{ color: "#3d4b44" }}>{label}</span>
                           <div className="flex items-center gap-1.5">
@@ -506,11 +506,7 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                           </div>
                         </div>
                       ))}
-                      <div className="flex justify-between items-center gap-3 mt-1 pt-2 rounded-[9px] px-2 py-1.5" style={{ borderTop: "1px solid #EAEFED", background: "#FAFBFB" }}>
-                        <span className="text-[12.5px] font-semibold" style={{ color: "#3d4b44" }}>🎟️ Coût dossier MinuteGlass</span>
-                        <span className="text-[13px] font-bold" style={{ color: "#6B7280" }}>− ~{coutDossier} €</span>
-                      </div>
-                      <div className="flex justify-between items-center gap-3 rounded-[9px] px-2 py-2" style={{ background: nette != null && nette > 0 ? "#E8F6F0" : "#F4F6F5" }}>
+                      <div className="flex justify-between items-center gap-3 rounded-[9px] px-2 py-2 mt-1" style={{ background: nette != null && nette > 0 ? "#E8F6F0" : "#F4F6F5" }}>
                         <span className="text-[13px] font-extrabold" style={{ color: "#0F5C44" }}>= Marge nette estimée</span>
                         <span className="text-[15px] font-extrabold" style={{ color: nette != null ? "#0F5C44" : "#9aa39e" }}>
                           {nette != null ? `~${nette} €` : "—"}

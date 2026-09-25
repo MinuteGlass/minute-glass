@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("demandes")
-    .select("id, title, city, intervention, insurance, damage, availability, status, margin_prix, margin_franchise, margin_pieces, created_at")
+    .select("id, title, city, intervention, insurance, damage, availability, status, prix_dossier, margin_prix, margin_franchise, margin_pieces, created_at")
     .in("status", ["active", "booked"])
     .order("created_at", { ascending: false });
 
@@ -37,6 +37,7 @@ export async function GET() {
       phone:        "●●● ●●● ●●●●",
       email:        "●●●●●@●●●●●.●●●",
       region:           "",
+      prix_dossier:     d.prix_dossier ?? null,
       margin_prix:      d.margin_prix ?? null,
       margin_franchise: d.margin_franchise ?? null,
       margin_pieces:    d.margin_pieces ?? null,
