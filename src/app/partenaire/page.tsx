@@ -414,22 +414,38 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
     {/* Modale confirmation déblocage */}
     {confirmDemande && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }} onClick={() => setConfirmDemande(null)}>
-        <div className="bg-white rounded-[20px] p-7 max-w-[380px] w-full animate-mgPop" style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-[20px] p-7 max-w-[420px] w-full animate-mgPop" style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }} onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-3 mb-4">
             <span className="inline-flex w-11 h-11 rounded-[13px] items-center justify-center flex-shrink-0" style={{ background: "#E8F6F0" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="5" y="11" width="14" height="9" rx="2" stroke="#1D9E75" strokeWidth="2"/>
-                <path d="M8 11V8a4 4 0 018 0" stroke="#1D9E75" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M9 12l2 2 4-4M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3Z" stroke="#1D9E75" strokeWidth="2" strokeLinejoin="round"/>
               </svg>
             </span>
             <div>
-              <div className="font-extrabold text-[16px]">Débloquer cette fiche ?</div>
+              <div className="font-extrabold text-[16px]">Acquérir ce dossier exclusif</div>
               <div className="text-[13px] font-semibold mt-0.5" style={{ color: "#6B7280" }}>{confirmDemande.title}</div>
             </div>
           </div>
+
+          {/* Ce que contient le dossier */}
+          <div className="rounded-[12px] p-4 mb-4" style={{ background: "#F6FBF9", border: "1px solid #cdeadd" }}>
+            <div className="font-bold text-[12.5px] mb-2.5" style={{ color: "#0F5C44" }}>Ce dossier inclut :</div>
+            {[
+              "Coordonnées complètes du client (tél. + email)",
+              "Garantie bris de glace vérifiée par MinuteGlass",
+              "Date et créneau de RDV déjà fixés",
+              "Dossier prêt — il ne reste qu'à déclarer le sinistre",
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-2 mb-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5"><path d="M5 12.5l4.5 4.5L19 7" stroke="#1D9E75" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="text-[12.5px] font-semibold" style={{ color: "#11211B" }}>{item}</span>
+              </div>
+            ))}
+          </div>
+
           <div className="rounded-[12px] p-4 mb-5" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
             <div className="flex items-center justify-between">
-              <span className="text-[13.5px] font-semibold" style={{ color: "#6B7280" }}>Coût du déblocage</span>
+              <span className="text-[13.5px] font-semibold" style={{ color: "#6B7280" }}>Coût du dossier</span>
               <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>{tokenCost(confirmDemande.intervention, confirmDemande.insurance)} jeton{tokenCost(confirmDemande.intervention, confirmDemande.insurance) > 1 ? "s" : ""}</span>
             </div>
             <div className="text-[12px] font-semibold mt-1" style={{ color: "#9aa39e" }}>
@@ -533,8 +549,12 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
           >
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <span className="inline-flex items-center gap-1 rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3Z" stroke="#0F5C44" strokeWidth="2.2" strokeLinejoin="round"/></svg>
+                  Dossier vérifié
+                </span>
                 {isInsured ? (
-                  <span className="rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#E8F6F0", color: "#0F5C44" }}>Avec assurance</span>
+                  <span className="rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#EAF1FE", color: "#2563EB" }}>BdG vérifié ✓</span>
                 ) : (
                   <span className="rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#FCEDE7", color: "#B0431F" }}>Sans assurance</span>
                 )}
@@ -648,7 +668,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                       style={{ background: "#1D9E75", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#fff" strokeWidth="2"/><path d="M8 11V8a4 4 0 018 0" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
-                      Débloquer — {tokenCost(d.intervention, d.insurance)} jeton{tokenCost(d.intervention, d.insurance) > 1 ? "s" : ""}
+                      Acquérir le dossier — {tokenCost(d.intervention, d.insurance)} jeton{tokenCost(d.intervention, d.insurance) > 1 ? "s" : ""}
                     </button>
                   )}
                 </>

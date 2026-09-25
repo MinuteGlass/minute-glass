@@ -15,6 +15,7 @@ interface AdminDemande {
   age: string;
   isNew: boolean;
   unlockCount: number;
+  verified: boolean;
 }
 
 /* ─── Types ─── */
@@ -312,10 +313,25 @@ function DashboardView({ particuliers, partenaires, transactions, demandes }: { 
 }
 
 /* ─── Demandes view ─── */
-function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
+function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDemande[] }) {
   const [search, setSearch] = useState("");
   const [filterIntervention, setFilterIntervention] = useState("toutes");
   const [selected, setSelected] = useState<AdminDemande | null>(null);
+  const [demandes, setDemandes] = useState(initialDemandes);
+
+  useEffect(() => { setDemandes(initialDemandes); }, [initialDemandes]);
+
+  async function toggleVerified(d: AdminDemande) {
+    const token = sessionStorage.getItem("mg_admin_token") ?? "";
+    const newVal = !d.verified;
+    setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, verified: newVal } : x));
+    if (selected?.id === d.id) setSelected(prev => prev ? { ...prev, verified: newVal } : null);
+    await fetch("/api/admin/demandes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-token": token },
+      body: JSON.stringify({ id: d.id, verified: newVal }),
+    }).catch(() => {});
+  }
 
   const filtered = useMemo(() => {
     return demandes.filter(d => {
@@ -364,7 +380,7 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
 
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid #EAEFED" }}>
         <div className="grid px-5 py-3 text-[11.5px] font-extrabold uppercase tracking-wider" style={{ gridTemplateColumns: "50px 1fr 140px 120px 100px 90px 90px 100px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
-          <span>ID</span><span>Véhicule</span><span>Ville</span><span>Type</span><span>Assurance</span><span>Publié</span><span>Statut</span><span>Actions</span>
+          <span>ID</span><span>Véhicule</span><span>Ville</span><span>Type</span><span>Assurance</span><span>Publié</span><span>Vérifié</span><span>Actions</span>
         </div>
         {filtered.map((d, i) => {
           const intervColor = d.intervention === "remplacement" ? { bg: "#EAF1FE", color: "#2563EB" } : d.intervention === "reparation" ? { bg: "#E8F6F0", color: "#1D9E75" } : { bg: "#EDE9FE", color: "#6D28D9" };
@@ -382,12 +398,18 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
                 {d.insurance === "avec" ? "Assuré" : "Sans"}
               </span>
               <span className="text-[12.5px] font-semibold" style={{ color: "#6B7280" }}>{d.age}</span>
-              <span className="inline-flex items-center gap-1 text-[12.5px] font-extrabold" style={{ color: count >= 1 ? "#0F5C44" : "#9aa39e" }}>
-                {count >= 1 ? "Pris" : "Libre"}
-              </span>
+              <button
+                onClick={() => toggleVerified(d)}
+                className="inline-flex items-center gap-1 text-[11.5px] font-bold rounded-full px-2.5 py-1 border-0 cursor-pointer transition-all"
+                style={d.verified
+                  ? { background: "#E8F6F0", color: "#0F5C44" }
+                  : { background: "#FFF7E8", color: "#B7791F" }
+                }
+              >
+                {d.verified ? "✓ Vérifié" : "En attente"}
+              </button>
               <div className="flex gap-1.5">
                 <button onClick={() => setSelected(d)} className="rounded-[8px] px-2.5 py-1.5 text-[11.5px] font-bold border-0 cursor-pointer" style={{ background: "#E8F6F0", color: "#0F5C44" }}>Voir</button>
-                <button className="rounded-[8px] px-2.5 py-1.5 text-[11.5px] font-bold border-0 cursor-pointer" style={{ background: "#FCEDE7", color: "#B0431F" }}>Retirer</button>
               </div>
             </div>
           );
@@ -408,6 +430,7 @@ function DemandesAdminView({ demandes }: { demandes: AdminDemande[] }) {
           { label: "Disponibilité", value: selected.availability },
           { label: "Publié",        value: selected.age },
           { label: "Statut lead",    value: count >= 1 ? "Pris — lead exclusif attribué" : "Libre — disponible" },
+          { label: "Dossier",       value: selected.verified ? "✓ Vérifié par MinuteGlass" : "⏳ En attente de vérification" },
         ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }} onClick={() => setSelected(null)}>

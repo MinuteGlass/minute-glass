@@ -212,27 +212,41 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
         style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-center mb-6">
+        <div className="text-center mb-5">
           <span className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-3" style={{ background: "#E8F6F0" }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <rect x="5" y="11" width="14" height="9" rx="2" stroke="#1D9E75" strokeWidth="2" />
-              <path d="M8 11V8a4 4 0 018 0" stroke="#1D9E75" strokeWidth="2" strokeLinecap="round" />
+              <path d="M9 12l2 2 4-4M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3Z" stroke="#1D9E75" strokeWidth="2" strokeLinejoin="round"/>
             </svg>
           </span>
-          <h2 className="m-0 text-[20px] font-extrabold">Débloquer cette fiche</h2>
-          <p className="m-0 mt-2 text-[14px] leading-relaxed" style={{ color: "#6B7280" }}>
-            Révélez les coordonnées du client et commencez à discuter.
+          <h2 className="m-0 text-[20px] font-extrabold">Acquérir ce dossier exclusif</h2>
+          <p className="m-0 mt-2 text-[13.5px] leading-relaxed" style={{ color: "#6B7280" }}>
+            Dossier vérifié par MinuteGlass — il ne reste qu'à déclarer le sinistre.
           </p>
+        </div>
+
+        {/* Ce que contient le dossier */}
+        <div className="rounded-[12px] p-3.5 mb-4" style={{ background: "#F6FBF9", border: "1px solid #cdeadd" }}>
+          {[
+            "Coordonnées complètes du client",
+            "Garantie bris de glace vérifiée ✓",
+            "RDV déjà fixé — date et créneau inclus",
+            "Déclaration de sinistre : votre seule étape",
+          ].map((item) => (
+            <div key={item} className="flex items-center gap-2 mb-1.5 last:mb-0">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="flex-shrink-0"><path d="M5 12.5l4.5 4.5L19 7" stroke="#1D9E75" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span className="text-[12.5px] font-semibold" style={{ color: "#0F5C44" }}>{item}</span>
+            </div>
+          ))}
         </div>
 
         <div className="rounded-[14px] p-4 mb-5" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-[13.5px]" style={{ color: "#6B7280" }}>Coût du déblocage</span>
+            <span className="font-semibold text-[13.5px]" style={{ color: "#6B7280" }}>Coût du dossier</span>
             <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>{tokenCost} jeton{tokenCost > 1 ? "s" : ""}</span>
           </div>
           <div className="flex items-center justify-between mt-1">
             <span className="font-semibold text-[13px]" style={{ color: "#9aa39e" }}>
-              {demande.insurance === "avec" ? "Client assuré · taux de conversion élevé" : "Client sans assurance"}
+              {demande.insurance === "avec" ? "Client assuré · bris de glace vérifié" : "Client sans assurance"}
             </span>
           </div>
         </div>
@@ -249,7 +263,7 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
           className="w-full py-3.5 rounded-[11px] font-bold text-[15px] text-white border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ background: "#1D9E75", boxShadow: "0 4px 14px rgba(29,158,117,.35)" }}
         >
-          {loading ? "Traitement…" : `Confirmer — ${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
+          {loading ? "Traitement…" : `Acquérir le dossier — ${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
         </button>
         <button
           onClick={onClose}
