@@ -560,7 +560,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                 )}
                 <span className="inline-flex items-center gap-1 rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: "#FFF7E8", color: "#B7791F" }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#B7791F" strokeWidth="1.8"/><path d="M12 8.5v7M10 10.5h2.6a1.4 1.4 0 010 2.8H10m0 0h2.8" stroke="#B7791F" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  {d.prix_dossier != null ? `${d.prix_dossier} €` : `${tokenCost(d.intervention, d.insurance)} jeton${tokenCost(d.intervention, d.insurance) > 1 ? "s" : ""}`}
+                  {d.prix_dossier != null ? `${d.prix_dossier} €` : "—"}
                 </span>
                 <span className="rounded-[7px] px-2 py-0.5 text-[11.5px] font-bold" style={{ background: interv.bg, color: interv.color }}>{interv.label}</span>
                 {d.margin_prix != null && d.prix_dossier != null && (() => {
