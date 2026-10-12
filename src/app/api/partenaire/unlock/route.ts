@@ -102,6 +102,11 @@ export async function POST(req: NextRequest) {
       email = email || clientProfile?.email || null;
     }
 
+    if (!email && demande?.client_id) {
+      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(demande.client_id);
+      email = authUser?.email ?? null;
+    }
+
     return NextResponse.json({
       ok: true,
       alreadyUnlocked: true,
@@ -152,6 +157,12 @@ export async function POST(req: NextRequest) {
       .single();
     phone = phone || clientProfile?.phone || null;
     email = email || clientProfile?.email || null;
+  }
+
+  // Dernier recours : email depuis Supabase Auth si toujours manquant
+  if (!email && demande?.client_id) {
+    const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(demande.client_id);
+    email = authUser?.email ?? null;
   }
 
   return NextResponse.json({

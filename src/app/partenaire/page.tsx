@@ -494,12 +494,6 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                     localStorage.setItem("mg_auth", JSON.stringify(parsed));
                     window.dispatchEvent(new Event("mg_auth_change"));
                   }
-                  // Stocke les coordonnées
-                  if (data.phone || data.email) {
-                    const mgContacts = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
-                    mgContacts[confirmDemande.id] = { phone: data.phone ?? "", email: data.email ?? "" };
-                    localStorage.setItem("mg_contacts", JSON.stringify(mgContacts));
-                  }
                   onUnlock(confirmDemande.id, data.phone, data.email);
                   onBalanceUpdate(data.tokens);
                   setJustUnlocked(confirmDemande.id);
@@ -2102,12 +2096,39 @@ export default function PartenairePage() {
   useEffect(() => { try { localStorage.setItem("mg_unlock_counts", JSON.stringify(globalUnlockCounts)); } catch {} }, [globalUnlockCounts]);
   useEffect(() => { try { localStorage.setItem("mg_favs", JSON.stringify([...favs])); } catch {} }, [favs]);
 
+  async function refreshContact(id: string) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    try {
+      const res = await fetch("/api/partenaire/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ demandeIds: [id] }),
+      });
+      if (!res.ok) return;
+      const { contacts: fresh } = await res.json();
+      if (fresh?.[id]) {
+        setContacts((prev) => ({ ...prev, [id]: fresh[id] }));
+        try {
+          const stored = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+          localStorage.setItem("mg_contacts", JSON.stringify({ ...stored, [id]: fresh[id] }));
+        } catch {}
+      }
+    } catch {}
+  }
+
   function handleUnlock(id: string, phone: string | null, email: string | null) {
     setUnlocked((prev) => new Set(prev).add(id));
     setGlobalUnlockCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
-    if (phone || email) {
-      setContacts((prev) => ({ ...prev, [id]: { phone: phone ?? "", email: email ?? "" } }));
-    }
+    // Toujours stocker (même vide) pour que la carte bascule en mode débloqué
+    const contactEntry = { phone: phone ?? "", email: email ?? "" };
+    setContacts((prev) => ({ ...prev, [id]: contactEntry }));
+    try {
+      const stored = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+      localStorage.setItem("mg_contacts", JSON.stringify({ ...stored, [id]: contactEntry }));
+    } catch {}
+    // Si coordonnées manquantes, relancer un fetch immédiat
+    if (!phone && !email) refreshContact(id);
     toast(`Fiche débloquée ! Coordonnées visibles.`, "success");
   }
   function handleBalanceUpdate(newBalance: number) {

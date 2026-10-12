@@ -53,13 +53,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Pour les client_id sans email dans profiles, chercher dans Supabase Auth
+  const stillMissingAuth = (demandes ?? []).filter((d) => {
+    const phone = d.phone || profileMap[d.client_id]?.phone;
+    const email = d.email || profileMap[d.client_id]?.email;
+    return !email && d.client_id;
+  });
+  const authEmailMap: Record<string, string> = {};
+  for (const d of stillMissingAuth) {
+    try {
+      const { data: { user: authUser } } = await supabaseAdmin.auth.admin.getUserById(d.client_id);
+      if (authUser?.email) authEmailMap[d.client_id] = authUser.email;
+    } catch {}
+  }
+
   const contacts: Record<string, { phone: string; email: string }> = {};
   for (const d of demandes ?? []) {
     const phone = d.phone || profileMap[d.client_id]?.phone || "";
-    const email = d.email || profileMap[d.client_id]?.email || "";
-    if (phone || email) {
-      contacts[d.id] = { phone, email };
-    }
+    const email = d.email || profileMap[d.client_id]?.email || authEmailMap[d.client_id] || "";
+    contacts[d.id] = { phone, email };
   }
 
   return NextResponse.json({ contacts });
