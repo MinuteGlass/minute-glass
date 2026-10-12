@@ -243,7 +243,7 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
           <div className="flex items-center justify-between">
             <span className="font-semibold text-[13.5px]" style={{ color: "#6B7280" }}>Coût du dossier</span>
             <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>
-              {demande.prix_dossier != null ? `~${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
+              {demande.prix_dossier != null ? `${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
             </span>
           </div>
           <div className="flex items-center justify-between mt-1">
@@ -265,7 +265,7 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
           className="w-full py-3.5 rounded-[11px] font-bold text-[15px] text-white border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ background: "#1D9E75", boxShadow: "0 4px 14px rgba(29,158,117,.35)" }}
         >
-          {loading ? "Traitement…" : `Acquérir le dossier — ${demande.prix_dossier != null ? `~${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}`}
+          {loading ? "Traitement…" : `Acquérir le dossier — ${demande.prix_dossier != null ? `${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}`}
         </button>
         <button
           onClick={onClose}
@@ -645,7 +645,7 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-[13.5px]" style={{ color: "#6B7280" }}>{interv.label}</span>
                 <span className="font-extrabold text-[18px]" style={{ color: "#0F5C44" }}>
-                  {demande.prix_dossier != null ? `~${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
+                  {demande.prix_dossier != null ? `${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
                 </span>
               </div>
             </div>
