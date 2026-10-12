@@ -86,3 +86,18 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+/* DELETE — supprimer une demande */
+export async function DELETE(req: NextRequest) {
+  const token = req.headers.get("x-admin-token") ?? "";
+  if (!verifyToken(token, process.env.ADMIN_SESSION_SECRET ?? "")) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const { id } = await req.json();
+  if (!id) return NextResponse.json({ error: "id manquant" }, { status: 400 });
+
+  const { error } = await supabaseAdmin.from("demandes").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

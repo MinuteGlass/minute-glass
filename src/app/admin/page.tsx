@@ -430,6 +430,18 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
     }).catch(() => {});
   }
 
+  async function deleteDemande(d: AdminDemande) {
+    if (!confirm(`Supprimer définitivement la demande "${d.title}" ? Cette action est irréversible.`)) return;
+    const token = sessionStorage.getItem("mg_admin_token") ?? "";
+    setDemandes(prev => prev.filter(x => x.id !== d.id));
+    setSelected(null);
+    await fetch("/api/admin/demandes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", "x-admin-token": token },
+      body: JSON.stringify({ id: d.id }),
+    }).catch(() => {});
+  }
+
   async function saveMarginField(d: AdminDemande, fields: MargeFields) {
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
     setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, ...fields } : x));
@@ -565,7 +577,10 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                 <MargeForm selected={selected} onSave={saveMarginField} />
               </div>
               {/* Footer */}
-              <div className="px-6 py-4 flex justify-end" style={{ borderTop: "1px solid #EAEFED" }}>
+              <div className="px-6 py-4 flex justify-between items-center" style={{ borderTop: "1px solid #EAEFED" }}>
+                <button onClick={() => deleteDemande(selected)} className="rounded-[10px] px-4 py-2.5 font-bold text-[13px] border-0 cursor-pointer" style={{ background: "#FDE8E8", color: "#D8302F" }}>
+                  🗑 Supprimer
+                </button>
                 <button onClick={() => setSelected(null)} className="rounded-[10px] px-5 py-2.5 font-bold text-[13.5px] border-0 cursor-pointer" style={{ background: "#F4F6F5", color: "#6B7280" }}>Fermer</button>
               </div>
             </div>
