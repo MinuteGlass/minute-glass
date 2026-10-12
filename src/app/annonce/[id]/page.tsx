@@ -242,7 +242,9 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
         <div className="rounded-[14px] p-4 mb-5" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
           <div className="flex items-center justify-between">
             <span className="font-semibold text-[13.5px]" style={{ color: "#6B7280" }}>Coût du dossier</span>
-            <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>{tokenCost} jeton{tokenCost > 1 ? "s" : ""}</span>
+            <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>
+              {demande.prix_dossier != null ? `~${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
+            </span>
           </div>
           <div className="flex items-center justify-between mt-1">
             <span className="font-semibold text-[13px]" style={{ color: "#9aa39e" }}>
@@ -263,7 +265,7 @@ function UnlockModal({ demande, onClose, onUnlocked }: { demande: Demande; onClo
           className="w-full py-3.5 rounded-[11px] font-bold text-[15px] text-white border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ background: "#1D9E75", boxShadow: "0 4px 14px rgba(29,158,117,.35)" }}
         >
-          {loading ? "Traitement…" : `Acquérir le dossier — ${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
+          {loading ? "Traitement…" : `Acquérir le dossier — ${demande.prix_dossier != null ? `~${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}`}
         </button>
         <button
           onClick={onClose}
@@ -639,10 +641,12 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
 
             {/* Token cost recap */}
             <div className="rounded-[14px] px-4 py-3.5" style={{ background: "#fff", border: "1px solid #EAEFED" }}>
-              <div className="text-[11.5px] font-extrabold uppercase tracking-wider mb-2" style={{ color: "#9aa39e" }}>Coût du déblocage</div>
+              <div className="text-[11.5px] font-extrabold uppercase tracking-wider mb-2" style={{ color: "#9aa39e" }}>Coût du dossier</div>
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-[13.5px]" style={{ color: "#6B7280" }}>{interv.label}</span>
-                <span className="font-extrabold text-[18px]" style={{ color: "#0F5C44" }}>{tokenCost} jeton{tokenCost > 1 ? "s" : ""}</span>
+                <span className="font-extrabold text-[18px]" style={{ color: "#0F5C44" }}>
+                  {demande.prix_dossier != null ? `~${demande.prix_dossier} €` : `${tokenCost} jeton${tokenCost > 1 ? "s" : ""}`}
+                </span>
               </div>
             </div>
           </div>
