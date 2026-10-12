@@ -129,16 +129,19 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const { userId, jetons, pack, packLabel } = session.metadata ?? {};
+    const { type, userId, demandeId, label, priceCents } = session.metadata ?? {};
 
-    if (userId && jetons) {
-      // Crédite les jetons
-      await supabaseAdmin.rpc("increment_tokens", {
-        user_id: userId,
-        amount: parseInt(jetons),
-      });
+    if (type === "dossier" && userId && demandeId) {
+      // Enregistre le déblocage
+      const { error: unlockErr } = await supabaseAdmin
+        .from("unlocks")
+        .insert({ demande_id: demandeId, repairer_id: userId, tokens_spent: 0 });
 
-      // Récupère la facture Stripe pour le PDF et le numéro
+      if (unlockErr && !unlockErr.message.includes("duplicate")) {
+        console.error("Erreur insertion unlock:", unlockErr.message);
+      }
+
+      // Récupère la facture Stripe
       let invoiceId = "";
       let invoicePdfUrl = "";
       let invoiceNumber = "";
@@ -154,45 +157,37 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Génère un numéro de référence interne si Stripe n'en a pas
       if (!invoiceNumber) {
         const year = new Date().getFullYear();
         const suffix = Date.now().toString().slice(-4);
         invoiceNumber = `FAC-${year}-${suffix}`;
       }
 
-      // Insère la transaction en base
-      const { error: txErr } = await supabaseAdmin.from("token_transactions").insert({
+      // Insère la transaction
+      await supabaseAdmin.from("token_transactions").insert({
         user_id: userId,
-        pack_name: packLabel ?? pack ?? "Inconnu",
-        tokens: parseInt(jetons),
+        pack_name: label ?? "Dossier MinuteGlass",
+        tokens: 0,
         amount_cents: session.amount_total ?? 0,
-        stripe_payment_id: session.payment_intent as string ?? null,
+        stripe_payment_id: (session.payment_intent as string) ?? null,
         stripe_session_id: session.id,
         stripe_invoice_id: invoiceId || null,
         invoice_pdf_url: invoicePdfUrl || null,
         invoice_number: invoiceNumber,
         status: "paid",
-      });
+      }).then(({ error }) => { if (error) console.error("Erreur tx:", error.message); });
 
-      if (txErr) {
-        console.error("Erreur insertion token_transactions:", txErr.message);
-      }
-
-      // Récupère l'email et le nom du réparateur pour envoyer la facture
+      // Envoie la facture par email
       const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("email, name")
-        .eq("id", userId)
-        .single();
+        .from("profiles").select("email, name").eq("id", userId).single();
 
       if (profile?.email && invoicePdfUrl) {
         const montant = ((session.amount_total ?? 0) / 100).toFixed(2).replace(".", ",") + " €";
         await sendInvoiceEmail({
           to: profile.email,
           name: profile.name ?? "Réparateur",
-          packLabel: packLabel ?? pack ?? "Jetons",
-          jetons: parseInt(jetons),
+          packLabel: label ?? "Dossier MinuteGlass",
+          jetons: 0,
           montant,
           invoiceNumber,
           invoicePdfUrl,

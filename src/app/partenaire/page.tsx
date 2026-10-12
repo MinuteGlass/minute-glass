@@ -445,14 +445,16 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
 
           <div className="rounded-[12px] p-4 mb-5" style={{ background: "#F4F6F5", border: "1px solid #EAEFED" }}>
             <div className="flex items-center justify-between">
-              <span className="text-[13.5px] font-semibold" style={{ color: "#6B7280" }}>Coût du dossier</span>
-              <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>{tokenCost(confirmDemande.intervention, confirmDemande.insurance)} jeton{tokenCost(confirmDemande.intervention, confirmDemande.insurance) > 1 ? "s" : ""}</span>
+              <span className="text-[13.5px] font-semibold" style={{ color: "#6B7280" }}>Prix du dossier</span>
+              <span className="font-extrabold text-[20px]" style={{ color: "#0F5C44" }}>
+                {confirmDemande.prix_dossier != null ? `${confirmDemande.prix_dossier} €` : "—"}
+              </span>
             </div>
             <div className="text-[12px] font-semibold mt-1" style={{ color: "#9aa39e" }}>
               {INTERVENTION_LABELS[confirmDemande.intervention]?.label} · {confirmDemande.insurance === "avec" ? "Client assuré" : "Sans assurance"}
             </div>
             <div className="text-[12px] font-semibold mt-0.5" style={{ color: "#9aa39e" }}>
-              Solde actuel : <b style={{ color: "#11211B" }}>{tokens} jetons</b> → après : <b style={{ color: "#0F5C44" }}>{tokens - tokenCost(confirmDemande.intervention, confirmDemande.insurance)} jetons</b>
+              Paiement sécurisé par Stripe — vous serez redirigé vers la page de paiement.
             </div>
           </div>
           <div className="flex gap-2.5">
@@ -460,13 +462,16 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
               Annuler
             </button>
             <button
-              disabled={loadingUnlock}
+              disabled={loadingUnlock || confirmDemande.prix_dossier == null}
               onClick={async () => {
-                const cost = tokenCost(confirmDemande.intervention, confirmDemande.insurance);
-                // Les IDs seed sont numériques — les vraies demandes Supabase ont des UUIDs
                 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
                 if (!UUID_RE.test(confirmDemande.id)) {
-                  alert("Ces données sont des exemples de démo et ne peuvent pas être débloquées. Les vraies demandes clients apparaîtront ici une fois soumises.");
+                  alert("Ces données sont des exemples de démo et ne peuvent pas être débloquées.");
+                  setConfirmDemande(null);
+                  return;
+                }
+                if (confirmDemande.prix_dossier == null) {
+                  alert("Le prix de ce dossier n'a pas encore été défini. Contactez MinuteGlass.");
                   setConfirmDemande(null);
                   return;
                 }
@@ -479,26 +484,27 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                   }
                   const token = session?.access_token;
                   if (!token) { alert("Session expirée — veuillez vous reconnecter."); setConfirmDemande(null); setLoadingUnlock(false); return; }
-                  const res = await fetch("/api/partenaire/unlock", {
+                  const res = await fetch("/api/stripe/create-checkout", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ demandeId: confirmDemande.id, cost }),
+                    body: JSON.stringify({ demandeId: confirmDemande.id }),
                   });
                   const data = await res.json();
-                  if (!res.ok) { alert(data.error ?? "Erreur lors du déblocage"); setLoadingUnlock(false); return; }
-                  // Met à jour le cache des jetons
-                  const cached = localStorage.getItem("mg_auth");
-                  if (cached) {
-                    const parsed = JSON.parse(cached);
-                    parsed.tokens = data.tokens;
-                    localStorage.setItem("mg_auth", JSON.stringify(parsed));
-                    window.dispatchEvent(new Event("mg_auth_change"));
+                  if (!res.ok) {
+                    if (data.alreadyUnlocked) {
+                      onUnlock(confirmDemande.id, null, null);
+                      setJustUnlocked(confirmDemande.id);
+                      setTimeout(() => setJustUnlocked(null), 4000);
+                      setConfirmDemande(null);
+                      return;
+                    }
+                    alert(data.error ?? "Erreur lors de la création du paiement");
+                    setLoadingUnlock(false);
+                    return;
                   }
-                  onUnlock(confirmDemande.id, data.phone, data.email);
-                  onBalanceUpdate(data.tokens);
-                  setJustUnlocked(confirmDemande.id);
-                  setTimeout(() => setJustUnlocked(null), 4000);
-                } finally {
+                  // Redirige vers Stripe Checkout
+                  if (data.url) window.location.href = data.url;
+                } catch {
                   setLoadingUnlock(false);
                   setConfirmDemande(null);
                 }
@@ -506,7 +512,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
               className="flex-1 py-3 rounded-[11px] font-bold text-[14px] text-white border-0 cursor-pointer disabled:opacity-60"
               style={{ background: "#1D9E75", boxShadow: "0 4px 12px rgba(29,158,117,.3)" }}
             >
-              {loadingUnlock ? "…" : `Confirmer — ${tokenCost(confirmDemande.intervention, confirmDemande.insurance)} jeton${tokenCost(confirmDemande.intervention, confirmDemande.insurance) > 1 ? "s" : ""}`}
+              {loadingUnlock ? "Redirection…" : `Payer ${confirmDemande.prix_dossier != null ? `${confirmDemande.prix_dossier} €` : "—"} →`}
             </button>
           </div>
         </div>
@@ -2025,14 +2031,43 @@ export default function PartenairePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [successJetons, setSuccessJetons] = useState<number | null>(null);
 
-  // Detect ?success=1 after Stripe payment
+  // Detect ?unlocked=<id> after Stripe payment redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("success") === "1") {
+    const unlockedId = params.get("unlocked");
+    if (unlockedId) {
+      window.history.replaceState({}, "", "/partenaire");
+      // Marque immédiatement le dossier débloqué en attendant les contacts
+      handleUnlock(unlockedId, null, null);
+      // Rafraîchit les contacts depuis l'API (le webhook a déjà inséré l'unlock)
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (!session?.access_token) return;
+        try {
+          const res = await fetch("/api/partenaire/contacts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+            body: JSON.stringify({ demandeIds: [unlockedId] }),
+          });
+          if (!res.ok) return;
+          const { contacts: fresh } = await res.json();
+          if (fresh?.[unlockedId]) {
+            setContacts(prev => ({ ...prev, [unlockedId]: fresh[unlockedId] }));
+            try {
+              const stored = JSON.parse(localStorage.getItem("mg_contacts") ?? "{}");
+              localStorage.setItem("mg_contacts", JSON.stringify({ ...stored, [unlockedId]: fresh[unlockedId] }));
+            } catch {}
+          }
+        } catch {}
+      });
+    }
+    // Ancien paramètre success=1 (packs jetons) — conservé pour compatibilité
+    const success = params.get("success");
+    if (success === "1") {
       const jetons = Number(params.get("jetons") ?? 0);
       setSuccessJetons(jetons);
       window.history.replaceState({}, "", "/partenaire");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync tokens depuis mg_auth quand l'API les met à jour (unlock, achat)
