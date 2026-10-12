@@ -317,6 +317,99 @@ function DashboardView({ particuliers, partenaires, transactions, demandes }: { 
 }
 
 /* ─── Demandes view ─── */
+type MargeFields = {
+  margin_prix: number | null;
+  margin_franchise: number | null;
+  margin_pieces: number | null;
+  prix_dossier: number | null;
+};
+
+function MargeForm({ selected, onSave }: { selected: AdminDemande; onSave: (d: AdminDemande, fields: MargeFields) => Promise<void> }) {
+  const [vals, setVals] = useState<{ margin_prix: string; margin_franchise: string; margin_pieces: string; prix_dossier: string }>({
+    margin_prix:      selected.margin_prix      != null ? String(selected.margin_prix)      : "",
+    margin_franchise: selected.margin_franchise != null ? String(selected.margin_franchise) : "",
+    margin_pieces:    selected.margin_pieces    != null ? String(selected.margin_pieces)    : "",
+    prix_dossier:     selected.prix_dossier     != null ? String(selected.prix_dossier)     : "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setVals({
+      margin_prix:      selected.margin_prix      != null ? String(selected.margin_prix)      : "",
+      margin_franchise: selected.margin_franchise != null ? String(selected.margin_franchise) : "",
+      margin_pieces:    selected.margin_pieces    != null ? String(selected.margin_pieces)    : "",
+      prix_dossier:     selected.prix_dossier     != null ? String(selected.prix_dossier)     : "",
+    });
+  }, [selected.id]);
+
+  const toNum = (s: string) => s === "" ? null : Number(s);
+
+  const nette = (() => {
+    const mp = toNum(vals.margin_prix);
+    const mf = toNum(vals.margin_franchise);
+    const mc = toNum(vals.margin_pieces);
+    const pd = toNum(vals.prix_dossier);
+    if (mp == null || pd == null) return null;
+    return mp - (mf ?? 0) - (mc ?? 0) - pd;
+  })();
+
+  const allFields: { key: keyof typeof vals; label: string; sign: string; placeholder: string }[] = [
+    { key: "margin_prix",      label: "💰 Prix prestation",             sign: "+", placeholder: "450" },
+    { key: "margin_franchise", label: "🎁 Franchise offerte client",    sign: "−", placeholder: "150" },
+    { key: "margin_pieces",    label: "🔩 Coût d'achat pare-brise",     sign: "−", placeholder: "80"  },
+    { key: "prix_dossier",     label: "🎟️ Prix du dossier MinuteGlass", sign: "−", placeholder: "45"  },
+  ];
+
+  async function handleValider() {
+    setSaving(true);
+    await onSave(selected, {
+      margin_prix:      toNum(vals.margin_prix),
+      margin_franchise: toNum(vals.margin_franchise),
+      margin_pieces:    toNum(vals.margin_pieces),
+      prix_dossier:     toNum(vals.prix_dossier),
+    });
+    setSaving(false);
+  }
+
+  return (
+    <div className="pt-3 mt-1 flex flex-col gap-2" style={{ borderTop: "1px solid #EAEFED" }}>
+      <div className="text-[11.5px] font-extrabold uppercase tracking-wider mb-1" style={{ color: "#9aa39e" }}>Détail de la marge</div>
+      {allFields.map(({ key, label, sign, placeholder }) => (
+        <div key={key} className="flex justify-between items-center gap-3">
+          <span className="text-[12.5px] font-semibold" style={{ color: "#3d4b44" }}>{label}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] font-bold" style={{ color: sign === "+" ? "#0F5C44" : "#D85A30" }}>{sign}</span>
+            <input
+              type="number" min={0}
+              placeholder={placeholder}
+              value={vals[key]}
+              onChange={(e) => setVals(prev => ({ ...prev, [key]: e.target.value }))}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              className="rounded-[8px] px-2.5 py-1.5 text-[13px] font-bold outline-none w-[80px] text-right"
+              style={{ border: "1px solid #EAEFED" }}
+            />
+            <span className="text-[12px] font-semibold" style={{ color: "#6B7280" }}>€</span>
+          </div>
+        </div>
+      ))}
+      <div className="flex justify-between items-center gap-3 rounded-[9px] px-2 py-2 mt-1" style={{ background: nette != null && nette > 0 ? "#E8F6F0" : "#F4F6F5" }}>
+        <span className="text-[13px] font-extrabold" style={{ color: "#0F5C44" }}>= Marge nette estimée</span>
+        <span className="text-[15px] font-extrabold" style={{ color: nette != null ? "#0F5C44" : "#9aa39e" }}>
+          {nette != null ? `${nette} €` : "—"}
+        </span>
+      </div>
+      <button
+        onClick={handleValider}
+        disabled={saving}
+        className="mt-2 w-full rounded-[10px] py-2.5 text-[13.5px] font-extrabold text-white"
+        style={{ background: saving ? "#9aa39e" : "#0F5C44", cursor: saving ? "not-allowed" : "pointer" }}
+      >
+        {saving ? "Enregistrement…" : "✓ Valider"}
+      </button>
+    </div>
+  );
+}
+
 function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDemande[] }) {
   const [search, setSearch] = useState("");
   const [filterIntervention, setFilterIntervention] = useState("toutes");
@@ -337,15 +430,14 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
     }).catch(() => {});
   }
 
-  async function saveMarginField(d: AdminDemande, field: "prix_dossier" | "margin_prix" | "margin_franchise" | "margin_pieces", value: string) {
+  async function saveMarginField(d: AdminDemande, fields: MargeFields) {
     const token = sessionStorage.getItem("mg_admin_token") ?? "";
-    const val = value === "" ? null : Number(value);
-    setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, [field]: val } : x));
-    if (selected?.id === d.id) setSelected(prev => prev ? { ...prev, [field]: val } : null);
+    setDemandes(prev => prev.map(x => x.id === d.id ? { ...x, ...fields } : x));
+    if (selected?.id === d.id) setSelected(prev => prev ? { ...prev, ...fields } : null);
     await fetch("/api/admin/demandes", {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "x-admin-token": token },
-      body: JSON.stringify({ id: d.id, [field]: value }),
+      body: JSON.stringify({ id: d.id, ...fields }),
     }).catch(() => {});
   }
 
@@ -470,51 +562,7 @@ function DemandesAdminView({ demandes: initialDemandes }: { demandes: AdminDeman
                   </div>
                 ))}
                 {/* Détail marge */}
-                {(() => {
-                  const coutDossier = selected.prix_dossier ?? null;
-                  const nette = selected.margin_prix != null && coutDossier != null
-                    ? (selected.margin_prix ?? 0)
-                      - (selected.margin_franchise ?? 0)
-                      - (selected.margin_pieces ?? 0)
-                      - coutDossier
-                    : null;
-                  const allFields: { key: "prix_dossier" | "margin_prix" | "margin_franchise" | "margin_pieces"; label: string; sign: string; placeholder: string }[] = [
-                    { key: "margin_prix",      label: "💰 Prix prestation",          sign: "+", placeholder: "450" },
-                    { key: "margin_franchise",  label: "🎁 Franchise offerte client", sign: "−", placeholder: "150" },
-                    { key: "margin_pieces",     label: "🔩 Coût d'achat pare-brise",  sign: "−", placeholder: "80"  },
-                    { key: "prix_dossier",      label: "🎟️ Prix du dossier MinuteGlass", sign: "−", placeholder: "45"  },
-                  ];
-                  return (
-                    <div className="pt-3 mt-1 flex flex-col gap-2" style={{ borderTop: "1px solid #EAEFED" }}>
-                      <div className="text-[11.5px] font-extrabold uppercase tracking-wider mb-1" style={{ color: "#9aa39e" }}>Détail de la marge</div>
-                      {allFields.map(({ key, label, sign, placeholder }) => (
-                        <div key={key} className="flex justify-between items-center gap-3">
-                          <span className="text-[12.5px] font-semibold" style={{ color: "#3d4b44" }}>{label}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[12px] font-bold" style={{ color: sign === "+" ? "#0F5C44" : "#D85A30" }}>{sign}</span>
-                            <span className="text-[12px] font-bold" style={{ color: "#9aa39e" }}>~</span>
-                            <input
-                              type="number" min={0}
-                              placeholder={placeholder}
-                              defaultValue={(selected[key] as number | null) ?? ""}
-                              onBlur={(e) => saveMarginField(selected, key, e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                              className="rounded-[8px] px-2.5 py-1.5 text-[13px] font-bold outline-none w-[80px] text-right"
-                              style={{ border: "1px solid #EAEFED" }}
-                            />
-                            <span className="text-[12px] font-semibold" style={{ color: "#6B7280" }}>€</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex justify-between items-center gap-3 rounded-[9px] px-2 py-2 mt-1" style={{ background: nette != null && nette > 0 ? "#E8F6F0" : "#F4F6F5" }}>
-                        <span className="text-[13px] font-extrabold" style={{ color: "#0F5C44" }}>= Marge nette estimée</span>
-                        <span className="text-[15px] font-extrabold" style={{ color: nette != null ? "#0F5C44" : "#9aa39e" }}>
-                          {nette != null ? `~${nette} €` : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })()}
+                <MargeForm selected={selected} onSave={saveMarginField} />
               </div>
               {/* Footer */}
               <div className="px-6 py-4 flex justify-end" style={{ borderTop: "1px solid #EAEFED" }}>
