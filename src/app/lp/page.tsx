@@ -157,6 +157,11 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen" style={{ background: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 
+      {/* ── Bandeau info plateforme ── */}
+      <div className="w-full px-4 py-3 text-center text-[13px] font-semibold" style={{ background: "#0F5C44", color: "rgba(255,255,255,.9)" }}>
+        🇫🇷 MinuteGlass est une plateforme de mise en relation entre particuliers et réparateurs vitrages agréés partout en France — <span style={{ color: "#7EEDC7", fontWeight: 700 }}>service 100 % gratuit pour le particulier</span>
+      </div>
+
       {/* ── Hero illustration ── */}
       <section className="relative w-full overflow-hidden" style={{ background: "#071e12" }}>
         {/* Mobile : image portrait */}
@@ -182,7 +187,7 @@ export default function LandingPage() {
             <Link
               href="/deposer"
               className="flex items-center justify-center gap-2 rounded-[14px] py-4 font-extrabold text-[16px] no-underline text-center"
-              style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.4)" }}
+              style={{ background: "#FF6B00", color: "#fff", boxShadow: "0 6px 24px rgba(255,107,0,.5)", fontSize: "17px" }}
             >
               Prendre rendez-vous →
             </Link>
