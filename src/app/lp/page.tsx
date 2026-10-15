@@ -184,7 +184,7 @@ export default function LandingPage() {
               className="flex items-center justify-center gap-2 rounded-[14px] py-4 font-extrabold text-[16px] no-underline text-center"
               style={{ background: "#1fdd6e", color: "#072d18", boxShadow: "0 6px 24px rgba(31,221,110,.4)" }}
             >
-              Déposer une demande →
+              Prendre rendez-vous →
             </Link>
           </div>
         </div>
@@ -238,7 +238,7 @@ export default function LandingPage() {
             className="inline-flex items-center gap-2 text-white rounded-[14px] px-10 py-4 font-extrabold text-[15px] no-underline"
             style={{ background: "#1D9E75", boxShadow: "0 6px 20px rgba(29,158,117,.3)" }}
           >
-            Je dépose ma demande gratuitement →
+            Prendre rendez-vous gratuitement →
           </Link>
         </div>
       </section>
@@ -425,7 +425,7 @@ export default function LandingPage() {
             className="inline-flex items-center gap-2 rounded-[14px] px-10 py-4 font-extrabold text-[16px] no-underline"
             style={{ background: "#fff", color: "#0F5C44", boxShadow: "0 6px 20px rgba(0,0,0,.15)" }}
           >
-            Déposer ma demande — c&apos;est gratuit →
+            Prendre rendez-vous — c&apos;est gratuit →
           </Link>
         </div>
       </section>
