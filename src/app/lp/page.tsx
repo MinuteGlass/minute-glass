@@ -159,7 +159,7 @@ export default function LandingPage() {
 
       {/* ── Bandeau info plateforme ── */}
       <div className="w-full px-4 py-3 text-center text-[13px] font-semibold" style={{ background: "#0F5C44", color: "rgba(255,255,255,.9)" }}>
-        🇫🇷 MinuteGlass est une plateforme de mise en relation entre particuliers et réparateurs vitrages agréés partout en France — <span style={{ color: "#7EEDC7", fontWeight: 700 }}>service 100 % gratuit pour le particulier</span>
+        🇫🇷 MinuteGlass est une plateforme de mise en relation entre particuliers et réparateurs vitrages partout en France — <span style={{ color: "#7EEDC7", fontWeight: 700 }}>service 100 % gratuit pour le particulier</span>
       </div>
 
       {/* ── Hero illustration ── */}
