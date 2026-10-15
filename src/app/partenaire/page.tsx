@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { tokenCost } from "@/lib/token-cost";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
 import { signIn, signUp, setAuth as setGlobalAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/Toast";
 import { ChatModal } from "@/components/ChatModal";
-import { PACKS, formatPrice, pricePerToken } from "@/lib/packs";
 import type { Demande } from "@/types";
 
 /* ─── Types ─── */
@@ -31,114 +29,6 @@ const INTERVENTION_LABELS: Record<string, { label: string; bg: string; color: st
 
 
 /* ─── Token Modal ─── */
-
-function TokenModal({ onClose }: { onClose: () => void }) {
-  const [loading, setLoading] = useState<string | null>(null);
-  // URLs pré-créées par pack — prêtes avant le clic
-  const checkoutUrls = useRef<Record<string, string>>({});
-
-  useEffect(() => {
-    // Récupère le token puis pré-crée toutes les sessions Stripe en parallèle
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      let token = session?.access_token;
-      if (!token) {
-        const { data } = await supabase.auth.refreshSession();
-        token = data.session?.access_token ?? undefined;
-      }
-      if (!token) return;
-
-      await Promise.all(
-        PACKS.map(async (pack) => {
-          try {
-            const res = await fetch("/api/stripe/create-checkout", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-              body: JSON.stringify({ pack: pack.id }),
-            });
-            const data = await res.json();
-            if (data.url) checkoutUrls.current[pack.id] = data.url;
-          } catch { /* silencieux — fallback au clic */ }
-        })
-      );
-    });
-  }, []);
-
-  async function handleBuy(packId: string) {
-    setLoading(packId);
-    if (checkoutUrls.current[packId]) {
-      window.location.href = checkoutUrls.current[packId];
-      return;
-    }
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) { alert("Session expirée, veuillez vous reconnecter."); setLoading(null); return; }
-      const res = await fetch("/api/stripe/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ pack: packId }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else { alert("Erreur : " + (data.error ?? "Réponse inattendue")); setLoading(null); }
-    } catch (err) {
-      alert("Erreur réseau : " + String(err));
-      setLoading(null);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }} onClick={onClose}>
-      <div className="bg-white rounded-[20px] p-7 w-full max-w-[540px] animate-mgPop" style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="m-0 text-[20px] font-extrabold">Acheter des jetons</h2>
-            <p className="m-0 mt-1 text-[13px] font-semibold" style={{ color: "#6B7280" }}>Sans date d'expiration · utilisez-les quand vous voulez.</p>
-          </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-full flex items-center justify-center border-0 cursor-pointer text-lg" style={{ background: "#F4F6F5", color: "#6B7280" }}>✕</button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {PACKS.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-[16px] p-4 flex flex-col gap-2 relative"
-              style={p.highlight
-                ? { background: "linear-gradient(150deg,#0F5C44,#1D9E75)", color: "#fff", boxShadow: "0 8px 24px rgba(15,92,68,.28)" }
-                : { border: "1px solid #EAEFED", background: "#fff" }
-              }
-            >
-              <div className="font-extrabold text-[14px]">{p.badge} {p.name}</div>
-              <div className="font-extrabold text-[28px] tracking-tight leading-none">
-                {p.tokens}
-                <span className={`text-[14px] font-semibold ml-1 ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>jeton{p.tokens > 1 ? "s" : ""}</span>
-              </div>
-              <div className="text-[22px] font-extrabold mt-1" style={!p.highlight ? { color: "#0F5C44" } : {}}>
-                {formatPrice(p.priceCents)} €
-              </div>
-              <div className={`text-[11px] font-semibold ${p.highlight ? "opacity-80" : ""}`} style={!p.highlight ? { color: "#6B7280" } : {}}>
-                {pricePerToken(p)} €/jeton · sans expiration
-              </div>
-              <button
-                onClick={() => handleBuy(p.id)}
-                disabled={loading !== null}
-                className="mt-2 w-full py-2.5 rounded-[10px] font-bold text-[13.5px] border-0 cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-60"
-                style={p.highlight
-                  ? { background: "#fff", color: "#0F5C44" }
-                  : { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
-                }
-              >
-                {loading === p.id ? "…" : "Choisir"}
-              </button>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-[11.5px] font-semibold mt-4" style={{ color: "#9aa39e" }}>
-          Paiement sécurisé par Stripe · Facturation disponible dans votre espace
-        </p>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Navbar partenaire ─── */
 /* ─── Notifications ─── */
@@ -277,18 +167,13 @@ function NotifPanel({ onNavigate }: { onNavigate: (nav: NavItem) => void }) {
   );
 }
 
-function PartnerNav({ tokens, onBuy, onNavigate }: { tokens: number; onBuy: () => void; onNavigate: (nav: NavItem) => void }) {
+function PartnerNav({ onNavigate }: { onNavigate: (nav: NavItem) => void }) {
   return (
     <header className="sticky top-0 z-40 bg-white" style={{ borderBottom: "1px solid #EAEFED" }}>
       <div className="max-w-[1320px] mx-auto px-6 flex items-center gap-5" style={{ height: 68 }}>
         <Link href="/"><Logo /></Link>
         <span className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>Espace réparateur</span>
         <div className="flex-1" />
-        <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 pl-3.5" style={{ background: "#E8F6F0", border: "1px solid #cdeadd" }}>
-          <span className="text-[13px] font-semibold" style={{ color: "#0F5C44" }}>Solde</span>
-          <span className="font-extrabold text-[15px]" style={{ color: "#0F5C44" }}>{tokens} jeton{tokens > 1 ? "s" : ""}</span>
-          <button onClick={onBuy} className="text-white rounded-full px-3 py-1.5 text-[12.5px] font-bold border-0 cursor-pointer" style={{ background: "#1D9E75" }}>Acheter</button>
-        </div>
         <NotifPanel onNavigate={onNavigate} />
         <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center font-extrabold text-[14px] text-white" style={{ background: "linear-gradient(150deg,#1D9E75,#0F5C44)" }}>VP</div>
       </div>
@@ -303,7 +188,7 @@ function Sidebar({ active, onChange, countAll }: { active: NavItem; onChange: (n
     { id: "demandes",    label: "Toutes les demandes",  icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>, badge: countAll },
     { id: "debloquees",  label: "Fiches débloquées",    icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M8 11V8a4 4 0 018 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
     { id: "favoris",     label: "Favoris",               icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 17.3l-5.4 3 1-6L3 10l6-.9L12 4l3 5.1 6 .9-4.6 4.3 1 6Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg> },
-    { id: "facturation", label: "Jetons & facturation",  icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7.5v9M9.5 9.5h4a1.8 1.8 0 010 3.5h-3a1.8 1.8 0 000 3.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg> },
+    { id: "facturation", label: "Facturation",            icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7.5v9M9.5 9.5h4a1.8 1.8 0 010 3.5h-3a1.8 1.8 0 000 3.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg> },
     { id: "zone",        label: "Ma zone d'activité",   icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11Z" stroke="currentColor" strokeWidth="1.8"/><circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.8"/></svg> },
     { id: "avis",        label: "Mes avis clients",     icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15.4l-4.2 2.3.8-4.7L5 9.6l4.7-.7L12 4.6l2.3 4.3 4.7.7-3.6 3.4.8 4.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/></svg> },
   ];
@@ -347,7 +232,7 @@ function Sidebar({ active, onChange, countAll }: { active: NavItem; onChange: (n
               <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8"/>
               <path d="M12 7.5v9M9.5 9.5h4a1.8 1.8 0 010 3.5h-3a1.8 1.8 0 000 3.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
             </svg>
-            Tarifs & jetons
+            Tarifs
           </Link>
         </div>
       </nav>
@@ -372,8 +257,6 @@ function MetricCard({ icon, iconBg, label, value, sub, subColor }: { icon: React
 /* ─── FeedList (controlled state lifted to PartenairePage) ─── */
 interface FeedListProps {
   tab: Tab;
-  tokens: number;
-  onTokenSpent: (cost: number) => void;
   onBalanceUpdate: (newBalance: number) => void;
   unlocked: Set<string>;
   favs: Set<string>;
@@ -387,7 +270,7 @@ interface FeedListProps {
   contacts: Record<string, { phone: string; email: string }>;
 }
 
-function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts }: FeedListProps) {
+function FeedList({ tab, onBalanceUpdate, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts }: FeedListProps) {
   const [chatDemande, setChatDemande]     = useState<Demande | null>(null);
   const [justUnlocked, setJustUnlocked]   = useState<string | null>(null);
   const [confirmDemande, setConfirmDemande] = useState<Demande | null>(null);
@@ -672,12 +555,11 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); setConfirmDemande(d); }}
-                      disabled={tokens <= 0}
-                      className="inline-flex items-center gap-2 text-white rounded-[10px] px-4 py-2.5 font-bold text-[13px] border-0 cursor-pointer whitespace-nowrap hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 text-white rounded-[10px] px-4 py-2.5 font-bold text-[13px] border-0 cursor-pointer whitespace-nowrap hover:opacity-90 transition-opacity"
                       style={{ background: "#1D9E75", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#fff" strokeWidth="2"/><path d="M8 11V8a4 4 0 018 0" stroke="#fff" strokeWidth="2" strokeLinecap="round"/></svg>
-                      Acquérir le dossier — {tokenCost(d.intervention, d.insurance)} jeton{tokenCost(d.intervention, d.insurance) > 1 ? "s" : ""}
+                      {d.prix_dossier != null ? `Débloquer — ${d.prix_dossier} €` : "Débloquer"}
                     </button>
                   )}
                 </>
@@ -692,8 +574,7 @@ function FeedList({ tab, tokens, onTokenSpent, onBalanceUpdate, unlocked, favs, 
 }
 
 /* ─── Dashboard view ─── */
-function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts, onBalanceUpdate }: {
-  tokens: number; onBuy: () => void;
+function DashboardView({ unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts, onBalanceUpdate }: {
   unlocked: Set<string>; favs: Set<string>;
   onUnlock: (id: string, phone: string | null, email: string | null) => void; onToggleFav: (id: string) => void;
   attributedToMe: Set<string>; attributedElsewhere: Set<string>; onAttributed: (id: string) => void;
@@ -719,34 +600,6 @@ function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, a
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#1D9E75" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           iconBg="#E8F6F0" label="Fiches débloquées" value={String(unlocked.size)} sub="au total" subColor="#6B7280"
         />
-        <div className="rounded-2xl p-5 text-white" style={{ background: "linear-gradient(150deg,#0F5C44,#1D9E75)", boxShadow: "0 6px 20px rgba(15,92,68,.22)" }}>
-          <div className="flex items-center gap-2 text-[12.5px] font-bold opacity-90 mb-3">
-            <span className="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center" style={{ background: "rgba(255,255,255,.18)" }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="#fff" strokeWidth="1.8"/><path d="M12 7.5v9M9.5 9.5h4a1.8 1.8 0 010 3.5h-3a1.8 1.8 0 000 3.5h4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/></svg>
-            </span>
-            Jetons restants
-          </div>
-          <div className="text-[32px] font-extrabold tracking-tight leading-none">{tokens}</div>
-          <div className="text-[12.5px] font-bold mt-1 opacity-90">sans date d'expiration</div>
-        </div>
-      </div>
-
-      {/* Token bar */}
-      <div className="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 flex-wrap mb-6" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
-        <div className="flex-1 min-w-[220px]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-bold text-[14px]">Votre solde de jetons</span>
-            <span className="font-extrabold text-[14px]" style={{ color: "#0F5C44" }}>{tokens} jetons</span>
-          </div>
-          <div className="h-[9px] rounded-full overflow-hidden" style={{ background: "#EEF2F0" }}>
-            <div className="h-full rounded-full" style={{ width: `${Math.min((tokens / 25) * 100, 100)}%`, background: "linear-gradient(90deg,#1D9E75,#0F5C44)" }} />
-          </div>
-          <div className="flex items-center gap-1.5 mt-2 text-[12px] font-semibold" style={{ color: "#6B7280" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#9aa39e" strokeWidth="1.8"/><path d="M12 7v5l3 2" stroke="#9aa39e" strokeWidth="1.8" strokeLinecap="round"/></svg>
-            Vos jetons n'expirent jamais.
-          </div>
-        </div>
-        <button onClick={onBuy} className="text-white rounded-[11px] px-6 py-3 font-bold text-[14px] border-0 cursor-pointer" style={{ background: "#1D9E75", boxShadow: "0 4px 12px rgba(29,158,117,.3)" }}>Acheter des jetons</button>
       </div>
 
       {/* Recent feed preview */}
@@ -754,14 +607,13 @@ function DashboardView({ tokens, onBuy, unlocked, favs, onUnlock, onToggleFav, a
         <h2 className="m-0 text-[17px] font-extrabold">Dernières demandes</h2>
         <span className="text-[13px] font-bold cursor-pointer" style={{ color: "#1D9E75" }}>Voir toutes →</span>
       </div>
-      <FeedList tab="toutes" tokens={tokens} onTokenSpent={(_cost) => {}} onBalanceUpdate={onBalanceUpdate} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} contacts={contacts} />
+      <FeedList tab="toutes" onBalanceUpdate={onBalanceUpdate} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} contacts={contacts} />
     </div>
   );
 }
 
 /* ─── Demandes view (with tabs) ─── */
-function DemandesView({ tokens, onTokenSpent, unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts, onBalanceUpdate }: {
-  tokens: number; onTokenSpent: (cost: number) => void;
+function DemandesView({ unlocked, favs, onUnlock, onToggleFav, attributedToMe, attributedElsewhere, onAttributed, demandes, globalUnlockCounts, contacts, onBalanceUpdate }: {
   unlocked: Set<string>; favs: Set<string>;
   onUnlock: (id: string, phone: string | null, email: string | null) => void; onToggleFav: (id: string) => void;
   attributedToMe: Set<string>; attributedElsewhere: Set<string>; onAttributed: (id: string) => void;
@@ -798,7 +650,7 @@ function DemandesView({ tokens, onTokenSpent, unlocked, favs, onUnlock, onToggle
           ))}
         </div>
       </div>
-      <FeedList tab={tab} tokens={tokens} onTokenSpent={onTokenSpent} onBalanceUpdate={onBalanceUpdate} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} contacts={contacts} />
+      <FeedList tab={tab} onBalanceUpdate={onBalanceUpdate} unlocked={unlocked} favs={favs} onUnlock={onUnlock} onToggleFav={onToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={onAttributed} demandes={demandes} globalUnlockCounts={globalUnlockCounts} contacts={contacts} />
     </div>
   );
 }
@@ -958,7 +810,7 @@ function formatMontant(cents: number) {
   return (cents / 100).toFixed(2).replace(".", ",") + " €";
 }
 
-function FacturationView({ tokens, onBuy }: { tokens: number; onBuy: () => void }) {
+function FacturationView() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -986,27 +838,15 @@ function FacturationView({ tokens, onBuy }: { tokens: number; onBuy: () => void 
   return (
     <div>
       <div className="mb-5">
-        <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Jetons & facturation</h1>
-        <p className="m-0 mt-1.5 text-[14px] font-medium" style={{ color: "#6B7280" }}>Gérez votre solde et téléchargez vos factures.</p>
-      </div>
-
-      {/* Solde actuel */}
-      <div className="rounded-2xl p-6 text-white mb-6 flex items-center justify-between flex-wrap gap-4" style={{ background: "linear-gradient(150deg,#0F5C44,#1D9E75)", boxShadow: "0 6px 20px rgba(15,92,68,.22)" }}>
-        <div>
-          <div className="text-[13px] font-bold opacity-80 mb-1">Solde actuel</div>
-          <div className="text-[44px] font-extrabold tracking-tight leading-none">{tokens} <span className="text-[22px] font-bold opacity-80">jetons</span></div>
-          <div className="text-[12.5px] font-semibold mt-2 opacity-80">Sans date d'expiration · débloquent contacts clients</div>
-        </div>
-        <button onClick={onBuy} className="rounded-[13px] px-7 py-3.5 font-bold text-[14.5px] border-0 cursor-pointer hover:opacity-90 transition-opacity" style={{ background: "#fff", color: "#0F5C44", boxShadow: "0 4px 16px rgba(0,0,0,.15)" }}>
-          Acheter des jetons
-        </button>
+        <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Facturation</h1>
+        <p className="m-0 mt-1.5 text-[14px] font-medium" style={{ color: "#6B7280" }}>Téléchargez vos factures de dossiers débloqués.</p>
       </div>
 
       {/* Historique */}
-      <h2 className="m-0 mb-3 text-[17px] font-extrabold">Historique des achats</h2>
+      <h2 className="m-0 mb-3 text-[17px] font-extrabold">Historique des paiements</h2>
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
-        <div className="grid text-[11.5px] font-extrabold uppercase tracking-wider px-5 py-3" style={{ gridTemplateColumns: "1fr 1fr 80px 100px 80px 100px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
-          <span>Référence</span><span>Pack</span><span>Jetons</span><span>Montant</span><span>Statut</span><span></span>
+        <div className="grid text-[11.5px] font-extrabold uppercase tracking-wider px-5 py-3" style={{ gridTemplateColumns: "1fr 1.5fr 100px 80px 100px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
+          <span>Référence</span><span>Dossier</span><span>Montant</span><span>Statut</span><span></span>
         </div>
 
         {loading && (
@@ -1018,13 +858,12 @@ function FacturationView({ tokens, onBuy }: { tokens: number; onBuy: () => void 
         )}
 
         {!loading && transactions.map((h, i) => (
-          <div key={h.id} className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "1fr 1fr 80px 100px 80px 100px", borderBottom: i < transactions.length - 1 ? "1px solid #EAEFED" : undefined }}>
+          <div key={h.id} className="grid items-center px-5 py-4" style={{ gridTemplateColumns: "1fr 1.5fr 100px 80px 100px", borderBottom: i < transactions.length - 1 ? "1px solid #EAEFED" : undefined }}>
             <span className="text-[13px] font-bold">{h.invoice_number}</span>
             <span className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>
               {h.pack_name}
               <span className="ml-2 text-[11.5px]" style={{ color: "#9aa39e" }}>{formatDate(h.created_at)}</span>
             </span>
-            <span className="font-extrabold text-[13px]" style={{ color: "#0F5C44" }}>+{h.tokens}</span>
             <span className="font-bold text-[13px]">{formatMontant(h.amount_cents)}</span>
             <span className="inline-flex items-center gap-1 text-[11.5px] font-bold rounded-full px-2.5 py-1 w-fit" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#0F5C44" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1357,7 +1196,7 @@ function ParametresView() {
       {/* Danger zone */}
       <div className="rounded-2xl p-6" style={{ border: "1.5px solid #FDE8E8", background: "#FFFBFB" }}>
         <h2 className="m-0 mb-1 text-[16px] font-extrabold" style={{ color: "#B0431F" }}>Zone danger</h2>
-        <p className="m-0 mb-4 text-[13px] font-semibold" style={{ color: "#6B7280" }}>La suppression de votre compte est irréversible. Vos jetons non utilisés ne seront pas remboursés.</p>
+        <p className="m-0 mb-4 text-[13px] font-semibold" style={{ color: "#6B7280" }}>La suppression de votre compte est irréversible.</p>
         <button onClick={() => setShowDeleteConfirm(true)} className="rounded-[11px] px-5 py-2.5 font-bold text-[13.5px] border-0 cursor-pointer hover:opacity-90" style={{ background: "#FDE8E8", color: "#B0431F" }}>
           Supprimer mon compte
         </button>
@@ -1372,7 +1211,7 @@ function ParametresView() {
             </div>
             <h3 className="m-0 mb-2 text-[17px] font-extrabold" style={{ color: "#11211B" }}>Supprimer le compte ?</h3>
             <p className="m-0 mb-5 text-[13px] font-semibold leading-relaxed" style={{ color: "#6B7280" }}>
-              Cette action est <strong>irréversible</strong>. Votre profil, vos fiches débloquées et vos jetons restants seront définitivement supprimés.
+              Cette action est <strong>irréversible</strong>. Votre profil et vos fiches débloquées seront définitivement supprimés.
             </p>
             <div className="flex gap-2.5">
               <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-[11px] font-bold text-[13.5px] border-0 cursor-pointer" style={{ background: "#F4F6F5", color: "#6B7280" }}>
@@ -1418,12 +1257,12 @@ function ParametresView() {
 
 /* ─── Aide view ─── */
 const AIDE_FAQ = [
-  { q: "Comment fonctionne le système de jetons ?",        a: "Chaque jeton vous permet de débloquer les coordonnées d'un client (téléphone + email). Le coût dépend du type d'intervention : réparation impact = 1 jeton, remplacement pare-brise sans assurance = 2 jetons, remplacement avec assurance BdG = 3 jetons. Les jetons n'ont pas de date d'expiration." },
-  { q: "Puis-je obtenir un remboursement ?",               a: "Les jetons achetés ne sont pas remboursables, sauf erreur de notre part. Ils sont valables à vie, donc utilisez-les sans contrainte de temps." },
+  { q: "Comment fonctionne le déblocage d'un dossier ?",   a: "Chaque dossier a un prix affiché. En cliquant sur « Débloquer », vous payez directement par carte et accédez immédiatement aux coordonnées du client (téléphone + email)." },
+  { q: "Puis-je obtenir un remboursement ?",               a: "Les dossiers débloqués ne sont pas remboursables, sauf erreur de notre part. Contactez-nous si vous avez un problème." },
   { q: "Comment contacter un client après déblocage ?",    a: "Une fois la fiche débloquée, le téléphone et l'email du client apparaissent. Contactez-le rapidement — d'autres réparateurs peuvent débloquer la même fiche." },
   { q: "Ma zone d'activité est-elle obligatoire ?",        a: "Non, mais elle filtre les demandes affichées par défaut. Vous pouvez débloquer n'importe quelle fiche, quelle que soit la zone." },
-  { q: "Comment recevoir une facture pour ma comptabilité ?", a: "Toutes vos factures sont disponibles dans l'onglet « Jetons & facturation ». Vous pouvez les télécharger en PDF à tout moment." },
-  { q: "Que faire si un client ne répond pas ?",           a: "Le jeton est consommé au moment du déblocage. Nous recommandons de contacter le client rapidement par téléphone ET email pour maximiser vos chances." },
+  { q: "Comment recevoir une facture pour ma comptabilité ?", a: "Toutes vos factures sont disponibles dans l'onglet « Facturation ». Vous pouvez les télécharger en PDF à tout moment." },
+  { q: "Que faire si un client ne répond pas ?",           a: "Le paiement est effectué au moment du déblocage. Nous recommandons de contacter le client rapidement par téléphone ET email pour maximiser vos chances." },
 ];
 
 function AideView() {
@@ -1691,7 +1530,7 @@ function PartnerSignupScreen({ onSubmit, onBack }: { onSubmit: () => void; onBac
           <span className="inline-block rounded-full px-3.5 py-1.5 text-[12.5px] font-bold mb-3" style={{ background: "#FCEDE7", color: "#B0431F" }}>Inscription réparateur</span>
           <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Créer mon compte réparateur</h1>
           <p className="m-0 mt-2 text-sm font-medium" style={{ color: "#6B7280" }}>
-            Renseignez votre société et vos zones d'intervention · <b style={{ color: "#0F5C44" }}>2 jetons offerts</b> à l'inscription.
+            Renseignez votre société et vos zones d'intervention.
           </p>
         </div>
         <div className="bg-white rounded-[20px] p-8" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
@@ -2002,18 +1841,6 @@ export default function PartenairePage() {
   const DEMANDES = demandes;
 
   const [nav, setNav]                 = useState<NavItem>("dashboard");
-  const [tokens, setTokens]           = useState<number>(() => {
-    try {
-      const auth = localStorage.getItem("mg_auth");
-      if (auth) {
-        const parsed = JSON.parse(auth);
-        if (typeof parsed?.tokens === "number") return parsed.tokens;
-      }
-      const v = localStorage.getItem("mg_tokens");
-      return v ? Number(v) : 0;
-    } catch { return 0; }
-  });
-  const [showTokenModal, setShowTokenModal] = useState(false);
   // Lifted state — shared across all views
   const [unlocked, setUnlocked] = useState<Set<string>>(() => {
     try { const v = localStorage.getItem("mg_unlocked"); return v ? new Set<string>(JSON.parse(v)) : new Set<string>(); } catch { return new Set<string>(); }
@@ -2029,7 +1856,6 @@ export default function PartenairePage() {
   const [attributedElsewhere, setAttributedElsewhere] = useState<Set<string>>(new Set());
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [successJetons, setSuccessJetons] = useState<number | null>(null);
 
   // Detect ?unlocked=<id> after Stripe payment redirect
   useEffect(() => {
@@ -2060,28 +1886,7 @@ export default function PartenairePage() {
         } catch {}
       });
     }
-    // Ancien paramètre success=1 (packs jetons) — conservé pour compatibilité
-    const success = params.get("success");
-    if (success === "1") {
-      const jetons = Number(params.get("jetons") ?? 0);
-      setSuccessJetons(jetons);
-      window.history.replaceState({}, "", "/partenaire");
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Sync tokens depuis mg_auth quand l'API les met à jour (unlock, achat)
-  useEffect(() => {
-    function syncTokens() {
-      try {
-        const raw = localStorage.getItem("mg_auth");
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (typeof parsed?.tokens === "number") setTokens(parsed.tokens);
-      } catch {}
-    }
-    window.addEventListener("mg_auth_change", syncTokens);
-    return () => window.removeEventListener("mg_auth_change", syncTokens);
   }, []);
 
   // Coordonnées débloquées — chargées depuis mg_contacts au montage (données valides seulement)
@@ -2126,7 +1931,6 @@ export default function PartenairePage() {
   }, []);
 
   // Persist to localStorage on change
-  useEffect(() => { try { localStorage.setItem("mg_tokens", String(tokens)); } catch {} }, [tokens]);
   useEffect(() => { try { localStorage.setItem("mg_unlocked", JSON.stringify([...unlocked])); } catch {} }, [unlocked]);
   useEffect(() => { try { localStorage.setItem("mg_unlock_counts", JSON.stringify(globalUnlockCounts)); } catch {} }, [globalUnlockCounts]);
   useEffect(() => { try { localStorage.setItem("mg_favs", JSON.stringify([...favs])); } catch {} }, [favs]);
@@ -2166,21 +1970,12 @@ export default function PartenairePage() {
     if (!phone && !email) refreshContact(id);
     toast(`Fiche débloquée ! Coordonnées visibles.`, "success");
   }
-  function handleBalanceUpdate(newBalance: number) {
-    setTokens(newBalance);
-    try {
-      const raw = localStorage.getItem("mg_auth");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        parsed.tokens = newBalance;
-        localStorage.setItem("mg_auth", JSON.stringify(parsed));
-      }
-    } catch {}
+  function handleBalanceUpdate(_newBalance: number) {
+    // Balance no longer tracked — payment is per dossier via Stripe
   }
   function handleToggleFav(id: string) {
     setFavs((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
-  function handleTokenSpent(cost: number) { setTokens((t) => Math.max(0, t - cost)); }
   function handleAttributed(id: string) {
     setAttributedToMe((prev) => new Set(prev).add(id));
     // Persister pour que la page /annonce/[id] puisse bloquer le déblocage
@@ -2198,29 +1993,7 @@ export default function PartenairePage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#F4F6F5" }}>
-      <PartnerNav tokens={tokens} onBuy={() => setShowTokenModal(true)} onNavigate={(n) => { setNav(n); setSidebarOpen(false); }} />
-      {showTokenModal && <TokenModal onClose={() => setShowTokenModal(false)} />}
-
-      {/* Modale succès paiement Stripe */}
-      {successJetons !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(17,33,27,.55)" }}>
-          <div className="bg-white rounded-[24px] p-10 max-w-[420px] w-full mx-4 text-center animate-mgPop" style={{ boxShadow: "0 24px 60px rgba(17,33,27,.22)" }}>
-            <div className="text-5xl mb-4">🎉</div>
-            <h2 className="m-0 text-[22px] font-extrabold mb-2">Paiement réussi !</h2>
-            <p className="m-0 text-[15px] font-semibold mb-1" style={{ color: "#6B7280" }}>
-              <span className="font-extrabold" style={{ color: "#0F5C44" }}>+{successJetons} jeton{successJetons > 1 ? "s" : ""}</span> crédités sur votre compte.
-            </p>
-            <p className="m-0 text-[13px] font-medium mb-8" style={{ color: "#9aa39e" }}>Utilisez-les pour débloquer des contacts clients.</p>
-            <button
-              onClick={() => setSuccessJetons(null)}
-              className="w-full py-3.5 rounded-[13px] font-bold text-[15px] text-white border-0 cursor-pointer hover:opacity-90 transition-opacity"
-              style={{ background: "linear-gradient(150deg,#0F5C44,#1D9E75)", boxShadow: "0 6px 20px rgba(15,92,68,.3)" }}
-            >
-              Accéder aux demandes
-            </button>
-          </div>
-        </div>
-      )}
+      <PartnerNav onNavigate={(n) => { setNav(n); setSidebarOpen(false); }} />
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
@@ -2250,11 +2023,11 @@ export default function PartenairePage() {
             Menu
           </button>
 
-          {nav === "dashboard"   && <DashboardView tokens={tokens} onBuy={() => setShowTokenModal(true)} unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} contacts={contacts} onBalanceUpdate={handleBalanceUpdate} />}
-          {nav === "demandes"    && <DemandesView tokens={tokens} onTokenSpent={handleTokenSpent} unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} contacts={contacts} onBalanceUpdate={handleBalanceUpdate} />}
+          {nav === "dashboard"   && <DashboardView unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} contacts={contacts} onBalanceUpdate={handleBalanceUpdate} />}
+          {nav === "demandes"    && <DemandesView unlocked={unlocked} favs={favs} onUnlock={handleUnlock} onToggleFav={handleToggleFav} attributedToMe={attributedToMe} attributedElsewhere={attributedElsewhere} onAttributed={handleAttributed} demandes={DEMANDES} globalUnlockCounts={globalUnlockCounts} contacts={contacts} onBalanceUpdate={handleBalanceUpdate} />}
           {nav === "debloquees"  && <DebloquéesView unlocked={unlocked} favs={favs} onToggleFav={handleToggleFav} demandes={DEMANDES} contacts={contacts} />}
           {nav === "favoris"     && <FavorisView favs={favs} unlocked={unlocked} onToggleFav={handleToggleFav} demandes={DEMANDES} />}
-          {nav === "facturation" && <FacturationView tokens={tokens} onBuy={() => setShowTokenModal(true)} />}
+          {nav === "facturation" && <FacturationView />}
           {nav === "zone"        && <ZoneView />}
           {nav === "avis"        && <AvisView />}
           {nav === "parametres"  && <ParametresView />}

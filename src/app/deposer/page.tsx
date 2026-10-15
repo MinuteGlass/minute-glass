@@ -81,6 +81,9 @@ export default function DeposerPage() {
   const [rdvSlot, setRdvSlot] = useState("");
   const [lieuType, setLieuType] = useState<"domicile" | "travail" | "">("");
   const [lieuAdresse, setLieuAdresse] = useState("");
+  const [consentContact, setConsentContact] = useState(false);
+
+  const CONSENT_TEXT = "J'accepte d'être recontacté(e) par téléphone par des réparateurs partenaires de mon secteur au sujet de ma demande.";
 
   /* Step 4 — Compte */
   const [password, setPassword] = useState("");
@@ -95,7 +98,7 @@ export default function DeposerPage() {
   const canStep1 = marqueValid && modele.trim() !== "" && ville.trim() !== "" && cpValid && plaqueValid && insurance !== null;
   const canStep2 = intervention !== null && description.trim().length >= 10;
   const telDigits = tel.replace(/\D/g, "");
-  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@") && rdvDate !== "" && rdvSlot !== "" && lieuType !== "" && lieuAdresse.trim().length >= 5;
+  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@") && rdvDate !== "" && rdvSlot !== "" && lieuType !== "" && lieuAdresse.trim().length >= 5 && consentContact;
   const canStep4 = cgu && (alreadyAuth || password.length >= 6);
 
   function next() { if (step < 4) setStep((s) => (s + 1) as Step); }
@@ -156,6 +159,8 @@ export default function DeposerPage() {
         email,
         name:         prenom,
         availability: rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot} · ${lieuType === "domicile" ? "Domicile" : "Lieu de travail"} : ${lieuAdresse}` : "À définir",
+        consent_text: CONSENT_TEXT,
+        consent_at:   new Date().toISOString(),
       }),
     });
 
@@ -559,6 +564,39 @@ export default function DeposerPage() {
                   Vos coordonnées restent masquées tant qu'aucun réparateur n'a débloqué votre fiche. Conforme RGPD.
                 </p>
               </div>
+
+              {/* Consentement contact — OBLIGATOIRE */}
+              <label
+                className="mt-4 flex gap-3 items-start cursor-pointer rounded-[12px] p-3.5"
+                style={{
+                  background: consentContact ? "#F0FAF5" : "#FAFBFB",
+                  border: `1.5px solid ${consentContact ? "#1D9E75" : "#EAEFED"}`,
+                  transition: "border-color 0.15s, background 0.15s",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={consentContact}
+                  onChange={(e) => setConsentContact(e.target.checked)}
+                  className="mt-0.5 flex-shrink-0 cursor-pointer"
+                  style={{ width: 17, height: 17, accentColor: "#1D9E75" }}
+                />
+                <span className="text-[12.5px] leading-relaxed font-semibold" style={{ color: "#3d4b44" }}>
+                  {CONSENT_TEXT}{" "}
+                  <span style={{ color: "#D85A30" }}>*</span>
+                </span>
+              </label>
+              <p className="mt-1.5 text-[11.5px] font-medium" style={{ color: "#9aa39e" }}>
+                En soumettant ce formulaire, vous acceptez notre{" "}
+                <a href="/politique-confidentialite" target="_blank" rel="noopener noreferrer" style={{ color: "#1D9E75", fontWeight: 600 }}>
+                  politique de confidentialité
+                </a>.
+              </p>
+              {!consentContact && (
+                <p className="text-[11.5px] font-bold mt-1" style={{ color: "#D85A30" }}>
+                  Ce consentement est obligatoire pour envoyer votre demande.
+                </p>
+              )}
             </div>
           )}
 
