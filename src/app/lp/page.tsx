@@ -162,16 +162,6 @@ export default function LandingPage() {
       <header className="sticky top-0 z-40 bg-white border-b" style={{ borderColor: "#EAEFED" }}>
         <div className="max-w-[1200px] mx-auto px-6 h-[60px] flex items-center justify-between">
           <Logo />
-          <a
-            href="tel:0100000000"
-            className="inline-flex items-center gap-2 font-bold text-[14px] no-underline"
-            style={{ color: "#0F5C44" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C9.61 21 3 14.39 3 6a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            01 00 00 00 00
-          </a>
         </div>
       </header>
 
