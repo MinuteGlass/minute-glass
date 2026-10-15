@@ -199,12 +199,6 @@ export default function LandingPage() {
             📞 Nous appeler
           </a>
         </div>
-        <p className="mt-3 text-[12.5px] font-medium" style={{ color: "#9aa39e" }}>
-          Vous n&apos;êtes pas assuré bris de glace ?{" "}
-          <Link href="/deposer" className="no-underline font-semibold underline" style={{ color: "#6B7280" }}>
-            Déposez quand même votre demande →
-          </Link>
-        </p>
       </section>
 
       {/* ── Hero illustration ── */}
