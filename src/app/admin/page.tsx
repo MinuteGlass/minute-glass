@@ -23,7 +23,7 @@ interface AdminDemande {
 }
 
 /* ─── Types ─── */
-type AdminNav = "dashboard" | "demandes" | "particuliers" | "partenaires" | "jetons" | "parametres";
+type AdminNav = "dashboard" | "demandes" | "particuliers" | "partenaires" | "parametres";
 
 interface Particulier {
   id: string;
@@ -42,24 +42,12 @@ interface Partenaire {
   region: string;
   siret: string;
   inscrit: string;
-  jetons: number;
   statut: "validé" | "en attente" | "suspendu" | "refusé";
   kbis_url?: string;
 }
 
-interface TokenTx {
-  id: string;
-  partenaire: string;
-  pack: string;
-  jetons: number;
-  montant: string;
-  date: string;
-  statut: "Payé" | "Remboursé";
-}
-
 const PARTICULIERS_SEED: Particulier[] = [];
 const PARTENAIRES_SEED: Partenaire[] = [];
-const TOKENS_SEED: TokenTx[] = [];
 
 /* ─── Login screen ─── */
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
@@ -180,11 +168,6 @@ const NAV_ITEMS: { id: AdminNav; label: string; icon: React.ReactNode }[] = [
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
   },
   {
-    id: "jetons",
-    label: "Jetons & revenus",
-    icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v10M9 9.5C9 8.12 10.34 7 12 7s3 1.12 3 2.5S13.66 12 12 12s-3 1.12-3 2.5S10.34 17 12 17s3-1.12 3-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-  },
-  {
     id: "parametres",
     label: "Paramètres",
     icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1Z" stroke="currentColor" strokeWidth="1.8"/></svg>,
@@ -235,12 +218,7 @@ function KpiCard({ label, value, sub, color = "#1D9E75", icon }: { label: string
 }
 
 /* ─── Dashboard view ─── */
-function DashboardView({ particuliers, partenaires, transactions, demandes }: { particuliers: Particulier[]; partenaires: Partenaire[]; transactions: TokenTx[]; demandes: AdminDemande[] }) {
-  const revenue = transactions.filter(t => t.statut === "Payé").reduce((acc, t) => {
-    const n = parseFloat(t.montant.replace(",", ".").replace(" €", ""));
-    return acc + n;
-  }, 0);
-
+function DashboardView({ particuliers, partenaires, demandes }: { particuliers: Particulier[]; partenaires: Partenaire[]; demandes: AdminDemande[] }) {
   const recentDemandes = demandes.slice(0, 5);
 
   return (
@@ -258,8 +236,8 @@ function DashboardView({ particuliers, partenaires, transactions, demandes }: { 
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>} />
         <KpiCard label="Partenaires" value={String(partenaires.filter(p => p.statut === "validé").length)} sub={`${partenaires.filter(p => p.statut === "en attente").length} en attente de validation`} color="#D85A30"
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>} />
-        <KpiCard label="Revenus" value={`${revenue.toLocaleString("fr-FR")} €`} sub={`${transactions.filter(t => t.statut === "Payé").length} transactions`} color="#7C3AED"
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v10M9 9.5C9 8.12 10.34 7 12 7s3 1.12 3 2.5S13.66 12 12 12s-3 1.12-3 2.5S10.34 17 12 17s3-1.12 3-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>} />
+        <KpiCard label="Partenaires actifs" value={String(partenaires.filter(p => p.statut === "validé").length)} sub="Comptes validés" color="#7C3AED"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -720,13 +698,13 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
       </div>
 
       <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid #EAEFED" }}>
-        <div className="grid px-5 py-3 text-[11.5px] font-extrabold uppercase tracking-wider" style={{ gridTemplateColumns: "50px 1fr 160px 120px 80px 100px 140px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
-          <span>ID</span><span>Société</span><span>Région</span><span>SIRET</span><span>Jetons</span><span>Statut</span><span>Actions</span>
+        <div className="grid px-5 py-3 text-[11.5px] font-extrabold uppercase tracking-wider" style={{ gridTemplateColumns: "50px 1fr 160px 120px 100px 140px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
+          <span>ID</span><span>Société</span><span>Région</span><span>SIRET</span><span>Statut</span><span>Actions</span>
         </div>
         {filtered.map((p, i) => {
           const st = statutStyle[p.statut];
           return (
-            <div key={p.id} className="grid items-center px-5 py-3.5" style={{ gridTemplateColumns: "50px 1fr 160px 120px 80px 100px 140px", borderBottom: i < filtered.length - 1 ? "1px solid #EAEFED" : undefined }}>
+            <div key={p.id} className="grid items-center px-5 py-3.5" style={{ gridTemplateColumns: "50px 1fr 160px 120px 100px 140px", borderBottom: i < filtered.length - 1 ? "1px solid #EAEFED" : undefined }}>
               <span className="text-[12px] font-bold" style={{ color: "#9aa39e" }}>{p.id}</span>
               <div>
                 <div className="font-bold text-[13.5px]">{p.societe}</div>
@@ -734,7 +712,6 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
               </div>
               <span className="text-[12.5px] font-semibold" style={{ color: "#6B7280" }}>{p.region.split(" ")[0]}</span>
               <span className="text-[12px] font-mono" style={{ color: "#6B7280" }}>{p.siret}</span>
-              <span className="font-extrabold text-[13px]" style={{ color: "#0F5C44" }}>{p.jetons}</span>
               <span className="inline-flex text-[11.5px] font-bold rounded-full px-2.5 py-1 w-fit" style={{ background: st.bg, color: st.color }}>{st.label}</span>
               <div className="flex gap-1.5 flex-wrap">
                 {p.statut === "en attente" && (
@@ -771,7 +748,6 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
                 { label: "SIRET", value: selected.siret },
                 { label: "Région", value: selected.region },
                 { label: "Inscrit le", value: selected.inscrit },
-                { label: "Jetons restants", value: `${selected.jetons} jetons` },
               ].map(row => (
                 <div key={row.label} className="rounded-[11px] p-3" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
                   <div className="text-[10.5px] font-bold uppercase tracking-wider mb-0.5" style={{ color: "#9aa39e" }}>{row.label}</div>
@@ -818,132 +794,9 @@ function PartenairesView({ partenaires, setPartenaires }: { partenaires: Partena
   );
 }
 
-/* ─── Jetons & revenus view ─── */
-function CreditTokensForm() {
-  const [email, setEmail]   = useState("");
-  const [amount, setAmount] = useState("");
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-
-  async function handleSubmit() {
-    const n = parseInt(amount);
-    if (!email || !n) return;
-    setLoading(true);
-    setResult(null);
-    try {
-      const token = sessionStorage.getItem("mg_admin_token") ?? "";
-      const res = await fetch("/api/admin/credit-tokens", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-token": token },
-        body: JSON.stringify({ email, amount: n, reason }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setResult({ ok: true, message: `✅ ${data.name} : ${data.previousBalance} → ${data.newBalance} jetons (${n > 0 ? "+" : ""}${n})` });
-        setEmail(""); setAmount(""); setReason("");
-      } else {
-        setResult({ ok: false, message: `❌ ${data.error}` });
-      }
-    } catch {
-      setResult({ ok: false, message: "❌ Erreur réseau" });
-    }
-    setLoading(false);
-  }
-
-  return (
-    <div className="bg-white rounded-2xl p-6 mb-6" style={{ border: "1px solid #EAEFED" }}>
-      <h2 className="m-0 mb-1 text-[16px] font-extrabold">Crédit / débit manuel</h2>
-      <p className="m-0 mb-4 text-[13px]" style={{ color: "#6B7280" }}>Créditer ou débiter des jetons sur un compte réparateur.</p>
-      <div className="flex gap-3 flex-wrap">
-        <input type="email" placeholder="Email du réparateur" value={email} onChange={e => setEmail(e.target.value)}
-          className="rounded-[10px] px-3.5 py-2.5 text-[13.5px] outline-none flex-1 min-w-[220px]"
-          style={{ border: "1px solid #EAEFED" }} />
-        <input type="number" placeholder="Jetons (+5 ou -3)" value={amount} onChange={e => setAmount(e.target.value)}
-          className="rounded-[10px] px-3.5 py-2.5 text-[13.5px] outline-none w-[140px]"
-          style={{ border: "1px solid #EAEFED" }} />
-        <input type="text" placeholder="Raison (optionnel)" value={reason} onChange={e => setReason(e.target.value)}
-          className="rounded-[10px] px-3.5 py-2.5 text-[13.5px] outline-none flex-1 min-w-[180px]"
-          style={{ border: "1px solid #EAEFED" }} />
-        <button onClick={handleSubmit} disabled={loading || !email || !amount}
-          className="rounded-[10px] px-5 py-2.5 text-[13.5px] font-bold text-white border-0 cursor-pointer disabled:opacity-50"
-          style={{ background: "#1D9E75" }}>
-          {loading ? "…" : "Appliquer"}
-        </button>
-      </div>
-      {result && (
-        <p className="mt-3 text-[13px] font-semibold" style={{ color: result.ok ? "#0F5C44" : "#D85A30" }}>
-          {result.message}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function JetonsView({ transactions }: { transactions: TokenTx[] }) {
-  const totalRevenue = transactions.filter(t => t.statut === "Payé").reduce((acc, t) => acc + parseFloat(t.montant.replace(",", ".").replace(" €", "")), 0);
-  const totalJetons  = transactions.filter(t => t.statut === "Payé").reduce((acc, t) => acc + t.jetons, 0);
-  const [search, setSearch] = useState("");
-
-  const filtered = transactions.filter(t =>
-    !search || t.partenaire.toLowerCase().includes(search.toLowerCase()) || t.id.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div>
-      <div className="mb-5">
-        <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Jetons & revenus</h1>
-        <p className="m-0 mt-1 text-[14px] font-medium" style={{ color: "#6B7280" }}>Suivi des transactions et revenus de la plateforme.</p>
-      </div>
-
-      <CreditTokensForm />
-
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <KpiCard label="Revenus totaux" value={`${totalRevenue.toLocaleString("fr-FR")} €`} sub="Toutes transactions payées" color="#7C3AED"
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>} />
-        <KpiCard label="Jetons vendus" value={String(totalJetons)} sub={`${transactions.length} transactions`} color="#1D9E75"
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 7v10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>} />
-        <KpiCard label="Ticket moyen" value={`${transactions.length ? Math.round(totalRevenue / transactions.filter(t => t.statut === "Payé").length) : 0} €`} sub="Par transaction" color="#D85A30"
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-3M9 7V5a2 2 0 014 0v2M9 7h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>} />
-      </div>
-
-      <div className="flex gap-3 mb-4">
-        <div className="relative">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9aa39e" }}>
-            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.8"/><path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          <input type="text" placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} className="rounded-[10px] pl-9 pr-4 py-2.5 text-[13.5px] font-medium outline-none w-[220px]" style={{ border: "1px solid #EAEFED", background: "#fff" }} />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid #EAEFED" }}>
-        <div className="grid px-5 py-3 text-[11.5px] font-extrabold uppercase tracking-wider" style={{ gridTemplateColumns: "140px 1fr 120px 80px 100px 90px", color: "#9aa39e", borderBottom: "1px solid #EAEFED" }}>
-          <span>Référence</span><span>Partenaire</span><span>Pack</span><span>Jetons</span><span>Montant</span><span>Statut</span>
-        </div>
-        {filtered.map((t, i) => (
-          <div key={t.id} className="grid items-center px-5 py-3.5" style={{ gridTemplateColumns: "140px 1fr 120px 80px 100px 90px", borderBottom: i < filtered.length - 1 ? "1px solid #EAEFED" : undefined }}>
-            <span className="text-[12.5px] font-bold">{t.id}</span>
-            <div>
-              <div className="font-bold text-[13.5px]">{t.partenaire}</div>
-              <div className="text-[11.5px] font-semibold" style={{ color: "#9aa39e" }}>{t.date}</div>
-            </div>
-            <span className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>{t.pack}</span>
-            <span className="font-extrabold text-[13px]" style={{ color: "#0F5C44" }}>+{t.jetons}</span>
-            <span className="font-bold text-[13px]">{t.montant}</span>
-            <span className="inline-flex text-[11.5px] font-bold rounded-full px-2.5 py-1 w-fit"
-              style={t.statut === "Payé" ? { background: "#E8F6F0", color: "#0F5C44" } : { background: "#FCEDE7", color: "#B0431F" }}>
-              {t.statut}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ─── Paramètres view ─── */
 function ParametresView() {
-  const [prixJeton, setPrixJeton]     = useState("8.00");
   const [commFee, setCommFee]         = useState("0");
   const [maxPhotos, setMaxPhotos]     = useState("5");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -964,10 +817,6 @@ function ParametresView() {
       <div className="bg-white rounded-2xl p-6 mb-4" style={{ border: "1px solid #EAEFED" }}>
         <h2 className="m-0 mb-4 text-[16px] font-extrabold">Tarification</h2>
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[13px] font-bold mb-1.5">Prix par jeton (€)</label>
-            <input type="number" step="0.5" value={prixJeton} onChange={(e) => setPrixJeton(e.target.value)} className="w-full rounded-[11px] px-3.5 py-3 text-[14px] outline-none" style={{ border: "1px solid #EAEFED" }} />
-          </div>
           <div>
             <label className="block text-[13px] font-bold mb-1.5">Commission plateforme (%)</label>
             <input type="number" step="1" value={commFee} onChange={(e) => setCommFee(e.target.value)} className="w-full rounded-[11px] px-3.5 py-3 text-[14px] outline-none" style={{ border: "1px solid #EAEFED" }} />
@@ -1020,8 +869,6 @@ export default function AdminPage() {
   const [particuliers, setParticuliers] = useState<Particulier[]>(PARTICULIERS_SEED);
   const [partenaires, setPartenaires]   = useState<Partenaire[]>(PARTENAIRES_SEED);
   const [demandes, setDemandes]         = useState<AdminDemande[]>([]);
-  const transactions = TOKENS_SEED;
-
   // Restore session from sessionStorage on mount
   useEffect(() => {
     const token = sessionStorage.getItem("mg_admin_token");
@@ -1057,7 +904,6 @@ export default function AdminPage() {
           region: (p.regions ?? []).slice(0, 2).join(", ") || "—",
           siret: p.siret ?? "—",
           inscrit: new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
-          jetons: p.tokens ?? 0,
           statut: (p.statut ?? "en attente") as Partenaire["statut"],
           kbis_url: p.kbis_url ?? "",
         }));
@@ -1120,11 +966,10 @@ export default function AdminPage() {
       <div className="max-w-[1320px] mx-auto px-6 flex gap-6">
         <AdminSidebar active={nav} onChange={setNav} pendingCount={pendingCount} />
         <main className="flex-1 min-w-0 py-6 pb-16">
-          {nav === "dashboard"   && <DashboardView particuliers={particuliers} partenaires={partenaires} transactions={transactions} demandes={demandes} />}
+          {nav === "dashboard"   && <DashboardView particuliers={particuliers} partenaires={partenaires} demandes={demandes} />}
           {nav === "demandes"    && <DemandesAdminView demandes={demandes} />}
           {nav === "particuliers" && <ParticuliersView users={particuliers} setUsers={setParticuliers} />}
           {nav === "partenaires" && <PartenairesView partenaires={partenaires} setPartenaires={setPartenaires} />}
-          {nav === "jetons"      && <JetonsView transactions={transactions} />}
           {nav === "parametres"  && <ParametresView />}
         </main>
       </div>
