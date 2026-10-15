@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
 
 function VanIllustration() {
   return (
@@ -157,39 +156,6 @@ function VanIllustration() {
 export default function LandingPage() {
   return (
     <div className="min-h-screen" style={{ background: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-
-      {/* ── Header minimaliste avec logo + téléphone ── */}
-      <header className="sticky top-0 z-40 bg-white border-b" style={{ borderColor: "#EAEFED" }}>
-        <div className="max-w-[1200px] mx-auto px-6 h-[60px] flex items-center justify-between">
-          <Logo />
-        </div>
-      </header>
-
-      {/* ── H1 + sous-titre ── */}
-      <section className="max-w-[800px] mx-auto px-6 pt-10 pb-6 text-center">
-        <h1 className="m-0 text-[26px] sm:text-[36px] font-extrabold tracking-tight leading-tight" style={{ color: "#11211B" }}>
-          Pare-brise fissuré ?<br />Recevez des devis de réparateurs près de chez vous
-        </h1>
-        <p className="m-0 mt-4 text-[15px] sm:text-[17px] font-medium" style={{ color: "#6B7280" }}>
-          Gratuit, sans engagement. Un réparateur vous rappelle rapidement.
-        </p>
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href="/deposer"
-            className="inline-flex items-center justify-center gap-2 text-white rounded-[14px] px-8 py-4 font-extrabold text-[16px] no-underline w-full sm:w-auto"
-            style={{ background: "#1D9E75", boxShadow: "0 6px 24px rgba(29,158,117,.35)" }}
-          >
-            Déposer ma demande — c&apos;est gratuit →
-          </Link>
-          <a
-            href="tel:0100000000"
-            className="inline-flex items-center justify-center gap-2 rounded-[14px] px-6 py-4 font-bold text-[15px] no-underline w-full sm:w-auto"
-            style={{ background: "#F4F6F5", color: "#0F5C44", border: "1.5px solid #EAEFED" }}
-          >
-            📞 Nous appeler
-          </a>
-        </div>
-      </section>
 
       {/* ── Hero illustration ── */}
       <section className="relative w-full overflow-hidden" style={{ background: "#071e12" }}>
