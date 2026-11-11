@@ -4,35 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { signIn, signUp } from "@/lib/auth";
+import { signIn } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-
-function SocialBtn({
-  icon, label, onClick, loading,
-}: { icon: "google"; label: string; onClick?: () => void; loading?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className="flex-1 inline-flex items-center justify-center gap-2 rounded-[11px] py-3 font-bold text-[14px] cursor-pointer transition-all hover:opacity-90 disabled:cursor-wait"
-      style={{ border: "1px solid #EAEFED", background: "#fff", color: "#11211B", opacity: loading ? 0.7 : 1 }}
-    >
-      {loading ? (
-        <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="40" strokeDashoffset="10" strokeLinecap="round" />
-        </svg>
-      ) : (
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 01-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3Z" />
-          <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.5l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.7-5.6-4.1H3.1v2.6A10 10 0 0012 22Z" />
-          <path fill="#FBBC05" d="M6.4 13.9a6 6 0 010-3.8V7.5H3.1a10 10 0 000 9l3.3-2.6Z" />
-          <path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.8-2.8A10 10 0 003.1 7.5l3.3 2.6C7.2 7.8 9.4 6.1 12 6.1Z" />
-        </svg>
-      )}
-      {loading ? "Connexion Google…" : label}
-    </button>
-  );
-}
 
 type Screen = "login" | "forgot";
 
@@ -46,7 +19,6 @@ export default function ConnexionPage() {
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
-  const [socialLoading, setSocialLoading] = useState<"google" | "apple" | null>(null);
 
   /* forgot password */
   const [fpEmail, setFpEmail]   = useState("");
@@ -62,15 +34,6 @@ export default function ConnexionPage() {
     setLoading(false);
     if (error) { setError(error); return; }
     router.push(state?.role === "partenaire" ? "/partenaire" : "/mes-demandes");
-  }
-
-  async function handleSocial(provider: "google" | "apple") {
-    setSocialLoading(provider);
-    await supabase.auth.signInWithOAuth({
-      provider: provider === "google" ? "google" : "apple",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setSocialLoading(null);
   }
 
   async function handleForgot() {
@@ -158,7 +121,7 @@ export default function ConnexionPage() {
           <Link href="/"><Logo /></Link>
           <span className="text-[13.5px] font-semibold" style={{ color: "#6B7280" }}>
             Pas encore de compte ?{" "}
-            <Link href="/deposer" className="font-bold no-underline" style={{ color: "#1D9E75" }}>S'inscrire gratuitement</Link>
+            <Link href="/deposer" className="font-bold no-underline" style={{ color: "#1D9E75" }}>S’inscrire gratuitement</Link>
           </span>
         </div>
       </header>
@@ -174,18 +137,6 @@ export default function ConnexionPage() {
           </div>
 
           <div className="bg-white rounded-[22px] p-8" style={{ border: "1px solid #EAEFED", boxShadow: "0 4px 24px rgba(17,33,27,.07)" }}>
-            {/* Social */}
-            <div className="flex gap-3 mb-5">
-              <SocialBtn icon="google" label="Continuer avec Google" onClick={() => handleSocial("google")} loading={socialLoading === "google"} />
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="flex-1 h-px" style={{ background: "#EAEFED" }} />
-              <span className="text-[12.5px] font-semibold" style={{ color: "#9aa39e" }}>ou par email</span>
-              <div className="flex-1 h-px" style={{ background: "#EAEFED" }} />
-            </div>
-
             {/* Champs */}
             <label className="block text-[13px] font-bold mb-1.5">Adresse email</label>
             <input
