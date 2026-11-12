@@ -1347,7 +1347,6 @@ function PartnerChoiceScreen({ onLogin, onSignup }: { onLogin: () => void; onSig
             <div className="text-[13px] font-semibold mt-1" style={{ color: "#6B7280" }}>J'ai déjà un compte réparateur</div>
           </button>
           <button onClick={onSignup} className="text-left rounded-[18px] p-6 cursor-pointer relative" style={{ background: "#FFF6F2", border: "2px solid #D85A30", boxShadow: "0 6px 20px rgba(216,90,48,.12)" }}>
-            <span className="absolute top-4 right-4 text-white rounded-full px-2.5 py-1 text-[10.5px] font-extrabold" style={{ background: "#0F5C44" }}>2 JETONS OFFERTS</span>
             <span className="inline-flex w-[46px] h-[46px] rounded-[13px] items-center justify-center mb-3.5" style={{ background: "#D85A30" }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M16 17v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 8.5a3 3 0 100-6 3 3 0 000 6ZM19 8v6M22 11h-6" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </span>

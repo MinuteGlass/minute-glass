@@ -57,7 +57,7 @@ export function AdSidebarPromo() {
       <div>
         <div className="font-extrabold text-[18px] leading-tight">Vous êtes réparateur&nbsp;?</div>
         <div className="text-[13px] opacity-90 mt-2 leading-relaxed">
-          Recevez les demandes de votre zone en temps réel. 2 jetons offerts à l'inscription.
+          Recevez les demandes de votre zone en temps réel.
         </div>
       </div>
       <button
