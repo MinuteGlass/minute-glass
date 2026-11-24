@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ToastContainer } from "@/components/Toast";
 import { Footer } from "@/components/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
 
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+// Police enregistrée dans le projet (licence OFL, voir fonts/OFL.txt) : la compilation
+// ne dépend plus d'un téléchargement chez Google Fonts, qui faisait échouer Vercel.
+const plusJakarta = localFont({
+  src: "./fonts/PlusJakartaSans-latin.woff2",
+  weight: "200 800",
+  style: "normal",
+  display: "swap",
   variable: "--font-jakarta",
 });
 

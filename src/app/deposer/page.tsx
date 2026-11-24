@@ -1,811 +1,940 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
-import { setAuth, getAuth, signUp } from "@/lib/auth";
+import { getAuth } from "@/lib/auth";
 import { addLocalDemande } from "@/lib/demandes-store";
-import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/Toast";
+import { trackLead } from "@/lib/tracking";
+import type { InsuranceType, InterventionType } from "@/types";
+import { MARQUES, modelesPour } from "@/data/vehicules";
 
-type Step = 1 | 2 | 3 | 4;
-type Insurance = "oui" | "non" | null;
-type Intervention = "remplacement" | "reparation" | "vitre" | null;
+const CONSENT_TEXT =
+  "J’accepte d’être recontacté(e) par téléphone par des réparateurs partenaires de mon secteur au sujet de ma demande.";
 
-const STEPS = ["Véhicule", "Le dégât", "Vos infos", "Confirmation"];
-
-const MARQUES = [
-  "Alfa Romeo", "Audi", "BMW", "Citroën", "Cupra", "Dacia", "DS", "Fiat",
-  "Ford", "Honda", "Hyundai", "Jaguar", "Jeep", "Kia", "Land Rover",
-  "Lexus", "Mazda", "Mercedes-Benz", "MINI", "Mitsubishi", "Nissan",
-  "Opel", "Peugeot", "Porsche", "Renault", "SEAT", "Škoda", "Smart",
-  "Subaru", "Suzuki", "Tesla", "Toyota", "Volkswagen", "Volvo", "Autre",
+const INTERVENTIONS: { value: InterventionType; label: string }[] = [
+  { value: "remplacement", label: "Remplacement pare-brise" },
+  { value: "reparation", label: "Réparation d’impact" },
+  { value: "vitre", label: "Vitre latérale ou lunette" },
 ];
-const ANNEES = Array.from({ length: 37 }, (_, i) => String(2026 - i));
-const INTERV_LABELS: Record<string, string> = {
+
+const INSURANCES: { value: Exclude<InsuranceAnswer, "">; label: string }[] = [
+  { value: "oui", label: "Oui" },
+  { value: "non", label: "Non" },
+  { value: "je_ne_sais_pas", label: "Je ne sais pas" },
+];
+
+/* Principaux assureurs auto du marché français. « Autre » ouvre une saisie libre. */
+const ASSUREURS = [
+  "AXA",
+  "Allianz",
+  "Active Assurances",
+  "Aviva",
+  "Covéa",
+  "Direct Assurance",
+  "Eurofil",
+  "GMF",
+  "Generali",
+  "Groupama",
+  "Harmonie Mutuelle",
+  "L’olivier",
+  "Leocare",
+  "MAAF",
+  "MACIF",
+  "MAIF",
+  "Matmut",
+  "MMA",
+  "Ornikar",
+  "Pacifica (Crédit Agricole)",
+  "Swiss Life",
+  "Thélem Assurances",
+  "Autre",
+];
+
+const AUTRE_MARQUE = "Autre";
+const AUTRE_MODELE = "__autre__";
+
+const INTERV_LABELS: Record<InterventionType, string> = {
   remplacement: "Remplacement pare-brise",
-  reparation: "Réparation d'impact",
-  vitre: "Vitre latérale",
+  reparation: "Réparation d’impact",
+  vitre: "Vitre latérale ou lunette",
 };
 
-function StepCircle({ n, state }: { n: number; state: "done" | "active" | "todo" }) {
-  const base = "w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 transition-all";
-  if (state === "done")
-    return (
-      <div className={`${base} text-white`} style={{ background: "#1D9E75" }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M5 12.5l4.5 4.5L19 7" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-    );
-  if (state === "active")
-    return <div className={`${base} text-white`} style={{ background: "#1D9E75", boxShadow: "0 0 0 4px #c8ead9" }}>{n}</div>;
-  return <div className={`${base}`} style={{ background: "#EAEFED", color: "#9aa39e" }}>{n}</div>;
+type InsuranceAnswer = "oui" | "non" | "je_ne_sais_pas" | "";
+
+type FieldName =
+  | "intervention"
+  | "marque"
+  | "modele"
+  | "cp"
+  | "phone"
+  | "email"
+  | "insurance"
+  | "assureur"
+  | "consent";
+
+type Errors = Partial<Record<FieldName, string>>;
+
+/* Ordre d’affichage : sert à placer le focus sur le premier champ en erreur. */
+const FIELD_ORDER: FieldName[] = [
+  "intervention",
+  "marque",
+  "modele",
+  "cp",
+  "phone",
+  "email",
+  "insurance",
+  "assureur",
+  "consent",
+];
+
+const FOCUS_IDS: Record<FieldName, string> = {
+  intervention: "intervention-remplacement",
+  marque: "marque",
+  modele: "modele",
+  cp: "cp",
+  phone: "phone",
+  email: "email",
+  insurance: "insurance-oui",
+  assureur: "insurer",
+  consent: "consent",
+};
+
+/* ─── Helpers ─── */
+
+/** Retire espaces, points et tirets ; ramène +33 / 0033 / 33 à un 0 initial. */
+function normalizePhone(raw: string): string {
+  let value = raw.replace(/[\s.\-()/]/g, "");
+
+  if (value.startsWith("+33")) {
+    value = `0${value.slice(3).replace(/^0/, "")}`;
+  } else if (value.startsWith("0033")) {
+    value = `0${value.slice(4).replace(/^0/, "")}`;
+  } else if (value.startsWith("33") && value.length === 11) {
+    value = `0${value.slice(2).replace(/^0/, "")}`;
+  }
+
+  return value.replace(/\D/g, "").slice(0, 10);
 }
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(value);
+}
+
+function inputClass(invalid: boolean): string {
+  return [
+    "h-12 w-full rounded-[12px] border bg-white px-3.5 text-[16px] font-semibold text-[#11211B]",
+    "outline-none transition-colors placeholder:font-medium placeholder:text-[#9aa39e]",
+    "focus:border-[#1D9E75] focus:shadow-[0_0_0_3px_rgba(29,158,117,.18)]",
+    invalid ? "border-[#D85A30]" : "border-[#EAEFED]",
+  ].join(" ");
+}
+
+/* ─── Petits composants (hors rendu pour éviter les remontages) ─── */
+
+function Req() {
+  return <span className="ml-0.5 text-[#D85A30]">*</span>;
+}
+
+function Label({
+  htmlFor,
+  children,
+  hint,
+}: {
+  htmlFor: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="mb-1.5 flex items-baseline justify-between gap-2">
+      <label htmlFor={htmlFor} className="text-[13.5px] font-bold text-[#11211B]">
+        {children}
+      </label>
+      {hint ? (
+        <span className="text-[11.5px] font-medium text-[#9aa39e]">{hint}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" className="mt-1.5 text-[12px] font-bold text-[#D85A30]">
+      {message}
+    </p>
+  );
+}
+
+/* ─── Page ─── */
 
 export default function DeposerPage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(1);
-  const [published, setPublished] = useState(false);
-  const [alreadyAuth, setAlreadyAuth] = useState(false);
 
   useEffect(() => {
     const auth = getAuth();
-    if (auth?.role === "partenaire") { router.replace("/partenaire"); return; }
-    if (auth?.role === "particulier") setAlreadyAuth(true);
+    if (auth?.role === "partenaire") router.replace("/partenaire");
   }, [router]);
 
-  /* Step 1 — Véhicule */
+  const [intervention, setIntervention] = useState<InterventionType>("remplacement");
   const [marque, setMarque] = useState("");
   const [marqueAutre, setMarqueAutre] = useState("");
   const [modele, setModele] = useState("");
-  const [annee, setAnnee] = useState("2024");
-  const [ville, setVille] = useState("");
+  const [modeleAutre, setModeleAutre] = useState("");
+  const [insurer, setInsurer] = useState("");
+  const [insurerAutre, setInsurerAutre] = useState("");
   const [cp, setCp] = useState("");
-  const [plaque, setPlaque] = useState("");
-  const [insurance, setInsurance] = useState<Insurance>(null);
-
-  /* Step 2 — Dégât */
-  const [intervention, setIntervention] = useState<Intervention>("remplacement");
-  const [photos, setPhotos] = useState<{ name: string; size: number; dataUrl: string; processing: boolean }[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [description, setDescription] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  /* Step 3 — Coordonnées */
-  const [prenom, setPrenom] = useState("");
-  const [tel, setTel] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [rdvDate, setRdvDate] = useState("");
-  const [rdvSlot, setRdvSlot] = useState("");
-  const [lieuType, setLieuType] = useState<"domicile" | "travail" | "">("");
-  const [lieuAdresse, setLieuAdresse] = useState("");
-  const [consentContact, setConsentContact] = useState(false);
+  const [insurance, setInsurance] = useState<InsuranceAnswer>("");
+  const [firstName, setFirstName] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [showDescription, setShowDescription] = useState(false);
+  const [description, setDescription] = useState("");
 
-  const CONSENT_TEXT = "J'accepte d'être recontacté(e) par téléphone par des réparateurs partenaires de mon secteur au sujet de ma demande.";
+  const [errors, setErrors] = useState<Errors>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [published, setPublished] = useState(false);
+  const [refNumber, setRefNumber] = useState("");
+  // Hauteur du bandeau cookies : le CTA sticky se cale juste au-dessus.
+  const [cookieBannerHeight, setCookieBannerHeight] = useState(0);
 
-  /* Step 4 — Compte */
-  const [password, setPassword] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
-  const [cgu, setCgu] = useState(false);
-  const [ref] = useState(() => `MG-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`);
+  useEffect(() => {
+    const measure = () => {
+      const banner = document.getElementById("mg-cookie-banner");
+      setCookieBannerHeight(
+        banner ? Math.round(banner.getBoundingClientRect().height) : 0,
+      );
+    };
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("mg-cookie-banner-change", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("mg-cookie-banner-change", measure);
+    };
+  }, []);
 
-  /* Validation */
-  const cpValid     = /^\d{5}$/.test(cp);
-  const plaqueValid = /^[A-Z]{2}-\d{3}-[A-Z]{2}$/.test(plaque.toUpperCase());
-  const marqueValid = marque !== "" && (marque !== "Autre" || marqueAutre.trim() !== "");
-  const canStep1 = marqueValid && modele.trim() !== "" && ville.trim() !== "" && cpValid && plaqueValid && insurance !== null;
-  const canStep2 = intervention !== null && description.trim().length >= 10;
-  const telDigits = tel.replace(/\D/g, "");
-  const canStep3 = prenom.trim() !== "" && telDigits.length === 10 && email.trim().includes("@") && rdvDate !== "" && rdvSlot !== "" && lieuType !== "" && lieuAdresse.trim().length >= 5 && consentContact;
-  const canStep4 = cgu && (alreadyAuth || password.length >= 6);
+  function clearError(name: FieldName) {
+    setErrors((prev) => (prev[name] ? { ...prev, [name]: undefined } : prev));
+  }
 
-  function next() { if (step < 4) setStep((s) => (s + 1) as Step); }
-  function prev() { if (step > 1) setStep((s) => (s - 1) as Step); }
+  function libelleVehicule(): string {
+    const marqueLabel = marque === AUTRE_MARQUE ? marqueAutre.trim() : marque;
+    const modeleLabel =
+      marque === AUTRE_MARQUE
+        ? modeleAutre.trim()
+        : modele === AUTRE_MODELE
+          ? modeleAutre.trim()
+          : modele;
+    return `${marqueLabel} ${modeleLabel}`.trim();
+  }
 
-  /* Dates disponibles — pas le jour même, pas le weekend, vendredi → à partir de mardi */
-  const availableDates = (() => {
-    const dates: { value: string; label: string }[] = [];
-    const now = new Date();
-    const todayDay = now.getDay(); // 0=dim, 1=lun … 5=ven, 6=sam
-    let daysToSkip = 1; // au minimum lendemain
-    if (todayDay === 4) daysToSkip = 4; // jeudi → lundi
-    if (todayDay === 5) daysToSkip = 4; // vendredi → mardi
-    if (todayDay === 6) daysToSkip = 3; // samedi → mardi
-    let added = 0;
-    let offset = daysToSkip;
-    while (added < 14) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + offset);
-      const day = d.getDay();
-      if (day !== 0 && day !== 6) { // pas weekend
-        const iso = d.toISOString().split("T")[0];
-        const label = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-        dates.push({ value: iso, label: label.charAt(0).toUpperCase() + label.slice(1) });
-        added++;
-      }
-      offset++;
+  function validate(): Errors {
+    const next: Errors = {};
+
+    const marqueChoisie = marque === AUTRE_MARQUE ? marqueAutre.trim() : marque;
+    const modeleChoisi =
+      marque === AUTRE_MARQUE
+        ? modeleAutre.trim()
+        : modele === AUTRE_MODELE
+          ? modeleAutre.trim()
+          : modele;
+
+    if (!marqueChoisie) {
+      next.marque = "Choisissez la marque de votre véhicule.";
+    } else if (marque === AUTRE_MARQUE && marqueChoisie.length < 2) {
+      next.marque = "Précisez la marque (2 caractères minimum).";
     }
-    return dates;
-  })();
+    if (marqueChoisie && !modeleChoisi) {
+      next.modele = "Choisissez le modèle de votre véhicule.";
+    }
+    if (!/^\d{5}$/.test(cp)) {
+      next.cp = "Entrez un code postal à 5 chiffres.";
+    }
+    if (!/^0\d{9}$/.test(normalizePhone(phone))) {
+      next.phone = "Entrez un numéro de téléphone français à 10 chiffres.";
+    }
+    if (!isValidEmail(email.trim())) {
+      next.email = "Entrez une adresse email valide.";
+    }
+    if (!insurance) {
+      next.insurance = "Précisez si vous avez une assurance bris de glace.";
+    }
+    if (insurance === "oui") {
+      const assureurChoisi = insurer === "Autre" ? insurerAutre.trim() : insurer;
+      if (!assureurChoisi) {
+        next.assureur = "Choisissez votre assureur (ou « Autre »).";
+      }
+    }
+    if (!consent) {
+      next.consent = "Ce consentement est obligatoire pour envoyer votre demande.";
+    }
 
-  const RDV_SLOTS = [
-    { value: "08h00 - 10h00", label: "8h00 – 10h00" },
-    { value: "10h00 - 12h00", label: "10h00 – 12h00" },
-    { value: "16h00 - 18h00", label: "16h00 – 18h00" },
-  ];
-
-  async function publish() {
-    if (!cgu) return;
-
-    const title = `${marque === "Autre" ? marqueAutre : marque} ${modele} · ${annee}`;
-
-    // Sauvegarde via API server-side (supabaseAdmin — contourne les problèmes RLS/session)
-    const { data: { session } } = await supabase.auth.getSession();
-    await fetch("/api/demandes/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      },
-      body: JSON.stringify({
-        title,
-        city:         `${ville} (${cp})`,
-        intervention: intervention ?? "remplacement",
-        insurance:    insurance === "oui" ? "avec" : "sans",
-        damage:       description,
-        phone:        tel,
-        email,
-        name:         prenom,
-        availability: rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot} · ${lieuType === "domicile" ? "Domicile" : "Lieu de travail"} : ${lieuAdresse}` : "À définir",
-        consent_text: CONSENT_TEXT,
-        consent_at:   new Date().toISOString(),
-      }),
-    });
-
-    // Garde aussi le localStorage pour la session en cours
-    const rdvLabel = rdvDate && rdvSlot ? `RDV le ${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })} · ${rdvSlot} · ${lieuType === "domicile" ? "Domicile" : "Lieu de travail"} : ${lieuAdresse}` : "À définir";
-    addLocalDemande({
-      id:           `local-${Date.now()}`,
-      title,
-      city:         `${ville} (${cp})`,
-      distance:     "0 km",
-      age:          "À l'instant",
-      insurance:    insurance === "oui" ? "avec" : "sans",
-      intervention: intervention ?? "remplacement",
-      damage:       description,
-      isNew:        true,
-      isLocal:      true,
-      clientName:   prenom,
-      phone:        tel,
-      email,
-      availability: rdvLabel,
-      photos:       photos.map((p) => p.dataUrl),
-    });
-
-    // Notifie tous les réparateurs validés
-    fetch("/api/notify/new-demande", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, city: `${ville} (${cp})`, intervention: intervention ?? "remplacement", damage: description, insurance: insurance === "oui" ? "avec" : "sans" }),
-    }).catch(() => {});
-
-    // Email de confirmation au client
-    fetch("/api/email/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "confirmation_client",
-        to: email,
-        prenom,
-        title,
-        ville,
-        intervention: intervention ?? "remplacement",
-      }),
-    }).catch(() => {});
-
-    if (!alreadyAuth) setAuth("particulier", email, prenom);
-    toast("Votre demande a été publiée !", "success");
-    setPublished(true);
+    return next;
   }
 
-  /* Photo processing */
-  const MAX_PHOTOS = 5;
-  const MAX_SIZE_MB = 8;
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
 
-  function pixelateBottom(dataUrl: string): Promise<string> {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width; canvas.height = img.height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0);
-        const blockSize = Math.max(8, Math.round(img.width / 30));
-        const startY = Math.round(img.height * 0.72);
-        for (let y = startY; y < img.height; y += blockSize) {
-          for (let x = 0; x < img.width; x += blockSize) {
-            const pixel = ctx.getImageData(x + Math.floor(blockSize / 2), y + Math.floor(blockSize / 2), 1, 1).data;
-            ctx.fillStyle = `rgba(${pixel[0]},${pixel[1]},${pixel[2]},${pixel[3] / 255})`;
-            ctx.fillRect(x, y, blockSize, blockSize);
-          }
+    const nextErrors = validate();
+    setErrors(nextErrors);
+
+    const firstError = FIELD_ORDER.find((name) => nextErrors[name]);
+    if (firstError) {
+      requestAnimationFrame(() => {
+        document.getElementById(FOCUS_IDS[firstError])?.focus();
+      });
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    const normalizedEmail = email.trim().toLowerCase();
+    const clientName = firstName.trim() || "Client";
+    const city = `CP ${cp}`;
+    const vehicleTitle = libelleVehicule();
+    const insuranceValue: InsuranceType = insurance === "oui" ? "avec" : "sans";
+    const assureurLabel =
+      insurance === "oui" ? (insurer === "Autre" ? insurerAutre.trim() : insurer) : "";
+
+    let damage = description.trim();
+    if (assureurLabel) {
+      damage = `[Assurance : ${assureurLabel}] ${damage}`.trim();
+    }
+    if (insurance === "je_ne_sais_pas") {
+      damage = damage ? `[Assurance à vérifier] ${damage}` : "[Assurance à vérifier]";
+    }
+
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/demandes/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: vehicleTitle,
+          city,
+          intervention,
+          insurance: insuranceValue,
+          damage,
+          phone: normalizedPhone,
+          email: normalizedEmail,
+          name: clientName,
+          availability: "À définir",
+          consent_text: CONSENT_TEXT,
+          consent_at: new Date().toISOString(),
+        }),
+      });
+
+      if (!res.ok) {
+        let message = "Impossible d’envoyer votre demande. Réessayez dans un instant.";
+        try {
+          const payload = (await res.json()) as { error?: string };
+          if (payload?.error) message = payload.error;
+        } catch {
+          /* réponse non JSON : on garde le message générique */
         }
-        ctx.fillStyle = "rgba(15,92,68,0.35)";
-        ctx.fillRect(0, startY, img.width, img.height - startY);
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
-      };
-      img.src = dataUrl;
-    });
+        toast(message, "error");
+        setSubmitting(false);
+        return;
+      }
+
+      let demandeId = `local-${Date.now()}`;
+      try {
+        const payload = (await res.json()) as { id?: string };
+        if (payload?.id) demandeId = String(payload.id);
+      } catch {
+        /* id serveur absent : l’identifiant local suffit pour l’historique */
+      }
+
+      // Historique local : alimente « Mes demandes » sans session.
+      addLocalDemande({
+        id: demandeId,
+        title: vehicleTitle,
+        city,
+        distance: "0 km",
+        age: "À l’instant",
+        insurance: insuranceValue,
+        intervention,
+        damage,
+        isNew: true,
+        isLocal: true,
+        clientName,
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        availability: "À définir",
+      });
+
+      // Notifications : ne bloquent jamais l’écran de succès.
+      void fetch("/api/notify/new-demande", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: vehicleTitle,
+          city,
+          intervention,
+          damage,
+          insurance: insuranceValue,
+        }),
+      }).catch(() => {});
+
+      void fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "confirmation_client",
+          to: normalizedEmail,
+          prenom: clientName,
+          title: vehicleTitle,
+          ville: city,
+          intervention,
+        }),
+      }).catch(() => {});
+
+      // Conversion Google Ads : uniquement après confirmation serveur.
+      trackLead({
+        intervention,
+        insurance: insurance === "oui" ? "oui" : "non",
+      });
+
+      setRefNumber(
+        `MG-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+      );
+      setPublished(true);
+    } catch {
+      toast("Connexion impossible. Vérifiez votre réseau et réessayez.", "error");
+      setSubmitting(false);
+    }
   }
 
-  const processFiles = useCallback((files: FileList | null) => {
-    if (!files) return;
-    const remaining = MAX_PHOTOS - photos.length;
-    Array.from(files).slice(0, remaining).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
-      if (file.size > MAX_SIZE_MB * 1024 * 1024) { toast(`${file.name} dépasse ${MAX_SIZE_MB} Mo.`, "error"); return; }
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const raw = e.target?.result as string;
-        setPhotos((prev) => [...prev, { name: file.name, size: file.size, dataUrl: raw, processing: true }]);
-        const blurred = await pixelateBottom(raw);
-        setPhotos((prev) => prev.map((p) => p.dataUrl === raw ? { ...p, dataUrl: blurred, processing: false } : p));
-      };
-      reader.readAsDataURL(file);
-    });
-    if (files.length > remaining) toast(`Maximum ${MAX_PHOTOS} photos.`, "info");
-  }, [photos.length]); // eslint-disable-line
-
-  if (published) return (
-    <SuccessScreen
-      refNumber={ref}
-      vehicle={`${marque === "Autre" ? marqueAutre : marque} ${modele} ${annee}`}
-      city={`${ville} (${cp})`}
-      intervention={intervention ?? "remplacement"}
-      insurance={insurance === "oui" ? "avec" : "sans"}
-      email={email}
-    />
-  );
+  if (published) {
+    return (
+      <SuccessScreen
+        refNumber={refNumber}
+        vehicle={libelleVehicule()}
+        city={`CP ${cp}`}
+        intervention={intervention}
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen" style={{ background: "#F4F6F5" }}>
+    <div className="min-h-screen bg-[#F4F6F5]">
       <Navbar />
-      <main className="max-w-[720px] mx-auto px-6 pb-16 pt-8">
-        <div className="text-center mb-7">
-          <h1 className="m-0 text-[25px] font-extrabold tracking-tight">Déposer une demande</h1>
-          <p className="m-0 mt-2 text-sm font-medium" style={{ color: "#6B7280" }}>
-            Gratuit · Les réparateurs vous contactent directement
+      <main className="mx-auto w-full max-w-[640px] px-4 pb-14 pt-7 sm:px-6 sm:pt-10">
+        <header className="mb-5 text-center sm:mb-7">
+          <h1 className="m-0 text-[26px] font-extrabold leading-tight tracking-tight text-[#11211B] sm:text-[30px]">
+            Décrivez votre vitrage
+          </h1>
+          <p className="mt-1.5 text-[13px] font-semibold text-[#6B7280] sm:text-[14px]">
+            Gratuit · Sans engagement · Les réparateurs vous rappellent
           </p>
-        </div>
+        </header>
 
-        {/* Stepper */}
-        <div className="flex items-center justify-between max-w-[520px] mx-auto mb-7">
-          {STEPS.map((name, i) => {
-            const n = (i + 1) as Step;
-            const state = step > n ? "done" : step === n ? "active" : "todo";
-            return (
-              <div key={n} className="flex items-center gap-2">
-                <div className="flex flex-col items-center gap-1.5">
-                  <StepCircle n={n} state={state} />
-                  <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: state === "todo" ? "#9aa39e" : "#11211B" }}>{name}</span>
-                </div>
-                {i < STEPS.length - 1 && <div className="w-12 h-0.5 mb-4 mx-1 rounded-full" style={{ background: step > n ? "#1D9E75" : "#EAEFED" }} />}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="bg-white rounded-[20px] p-8" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 3px rgba(17,33,27,.04)" }}>
-
-          {/* ── STEP 1 — Véhicule ── */}
-          {step === 1 && (
-            <div className="animate-mgFade">
-              <h2 className="m-0 mb-1 text-[19px] font-extrabold">Votre véhicule</h2>
-              <p className="m-0 mb-6 text-[13.5px]" style={{ color: "#6B7280" }}>Ces infos aident le réparateur à préparer l'intervention.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                <div>
-                  <FieldLabel>Marque <Req /></FieldLabel>
-                  <select value={marque} onChange={(e) => { setMarque(e.target.value); setMarqueAutre(""); }}
-                    className="w-full rounded-[11px] px-3 py-3 text-[14px] font-semibold cursor-pointer outline-none bg-white"
-                    style={{ border: "1px solid #EAEFED", color: marque ? "#11211B" : "#9aa39e" }}>
-                    <option value="" disabled>Choisir…</option>
-                    {MARQUES.map((m) => <option key={m}>{m}</option>)}
-                  </select>
-                  {marque === "Autre" && (
-                    <input type="text" value={marqueAutre} onChange={(e) => setMarqueAutre(e.target.value)}
-                      placeholder="Précisez" className="w-full rounded-[11px] px-3.5 py-3 text-[14px] outline-none mt-2"
-                      style={{ border: "1px solid #EAEFED" }} />
-                  )}
-                </div>
-                <div>
-                  <FieldLabel>Modèle <Req /></FieldLabel>
-                  <InputField value={modele} onChange={setModele} placeholder="Ex : 308" />
-                </div>
-                <div>
-                  <FieldLabel>Année <Req /></FieldLabel>
-                  <SelectField value={annee} onChange={setAnnee} options={ANNEES} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-[2fr_1fr] gap-3.5 mt-4">
-                <div>
-                  <FieldLabel>Ville <Req /></FieldLabel>
-                  <InputField value={ville} onChange={setVille} placeholder="Ex : Lyon" />
-                </div>
-                <div>
-                  <FieldLabel>Code postal <Req /></FieldLabel>
-                  <input type="text" inputMode="numeric" value={cp}
-                    onChange={(e) => setCp(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                    placeholder="69001" maxLength={5}
-                    className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none"
-                    style={{ border: `1px solid ${cp.length > 0 && !cpValid ? "#D85A30" : "#EAEFED"}` }} />
-                  {cp.length > 0 && !cpValid && <p className="mt-1 text-[11.5px] font-bold" style={{ color: "#D85A30" }}>5 chiffres requis</p>}
-                </div>
-              </div>
-              <div className="mt-4">
-                <FieldLabel>Plaque d'immatriculation <Req /></FieldLabel>
-                <input type="text" value={plaque}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 7);
-                    let f = raw;
-                    if (raw.length > 5) f = raw.slice(0, 2) + "-" + raw.slice(2, 5) + "-" + raw.slice(5);
-                    else if (raw.length > 2) f = raw.slice(0, 2) + "-" + raw.slice(2);
-                    setPlaque(f);
-                  }}
-                  placeholder="AB-123-CD" maxLength={9}
-                  className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none tracking-widest font-bold"
-                  style={{ border: `1px solid ${plaque.length > 0 && !plaqueValid ? "#D85A30" : "#EAEFED"}` }} />
-                {plaque.length > 0 && !plaqueValid && <p className="mt-1 text-[11.5px] font-bold" style={{ color: "#D85A30" }}>Format attendu : AB-123-CD</p>}
-                <div className="flex items-center gap-1.5 mt-2 text-[12.5px] font-bold" style={{ color: "#1D9E75" }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#1D9E75" strokeWidth="2" /><path d="M8 11V8a4 4 0 018 0v3" stroke="#1D9E75" strokeWidth="2" /></svg>
-                  Masquée automatiquement dans toutes les annonces.
-                </div>
-              </div>
-              <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
-                <div className="font-bold text-[14px] mb-1">Assurance bris de glace <span style={{ color: "#D85A30" }}>*</span></div>
-                <div className="text-[12.5px] mb-3" style={{ color: "#6B7280" }}>Êtes-vous couvert pour ce sinistre ?</div>
-                <div className="flex gap-2.5">
-                  <InsuranceBtn active={insurance === "oui"} onClick={() => setInsurance("oui")} color="green" label="Oui, je suis assuré" />
-                  <InsuranceBtn active={insurance === "non"} onClick={() => setInsurance("non")} color="orange" label="Non / je ne sais pas" />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP 2 — Dégât ── */}
-          {step === 2 && (
-            <div className="animate-mgFade">
-              <h2 className="m-0 mb-1 text-[19px] font-extrabold">Le dégât</h2>
-              <p className="m-0 mb-5 text-[13.5px]" style={{ color: "#6B7280" }}>Décrivez le type d'intervention souhaité.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                {([
-                  { value: "remplacement", label: "Remplacement pare-brise", sub: "Fissuré ou très endommagé" },
-                  { value: "reparation", label: "Réparation d'impact", sub: "Petit éclat ou impact localisé" },
-                  { value: "vitre", label: "Vitre latérale", sub: "Vitre de porte ou custode" },
-                ] as const).map((opt) => (
-                  <label key={opt.value} className="rounded-[13px] p-4 cursor-pointer flex gap-3 items-start transition-all"
-                    style={intervention === opt.value ? { border: "2px solid #1D9E75", background: "#F6FBF9" } : { border: "1px solid #EAEFED", background: "#fff" }}>
-                    <input type="radio" name="interv" checked={intervention === opt.value}
-                      onChange={() => setIntervention(opt.value)} className="mt-0.5" style={{ accentColor: "#1D9E75", width: 17, height: 17 }} />
-                    <span>
-                      <span className="block font-bold text-[14px]">{opt.label}</span>
-                      <span className="block text-xs mt-0.5" style={{ color: "#6B7280" }}>{opt.sub}</span>
+        <form
+          noValidate
+          onSubmit={handleSubmit}
+          className="rounded-[20px] border border-[#EAEFED] bg-white p-5 shadow-[0_1px_3px_rgba(17,33,27,.04)] sm:p-8"
+        >
+          <div className="flex flex-col gap-6">
+            {/* 1 — Type de vitrage */}
+            <fieldset
+              className="m-0 border-0 p-0"
+              aria-invalid={errors.intervention ? true : undefined}
+            >
+              <legend className="mb-2 p-0 text-[13.5px] font-bold text-[#11211B]">
+                Type de vitrage <Req />
+              </legend>
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {INTERVENTIONS.map((option) => (
+                  <label key={option.value} className="relative block cursor-pointer">
+                    <input
+                      id={`intervention-${option.value}`}
+                      type="radio"
+                      name="intervention"
+                      value={option.value}
+                      checked={intervention === option.value}
+                      onChange={() => setIntervention(option.value)}
+                      className="peer sr-only"
+                    />
+                    <span className="flex min-h-[52px] items-center justify-center rounded-[13px] border border-[#EAEFED] bg-white px-3 text-center text-[13.5px] font-bold leading-tight text-[#3d4b44] transition-colors peer-checked:border-[#1D9E75] peer-checked:bg-[#E8F6F0] peer-checked:text-[#0F5C44] peer-focus-visible:ring-2 peer-focus-visible:ring-[#1D9E75] peer-focus-visible:ring-offset-2">
+                      {option.label}
                     </span>
                   </label>
                 ))}
               </div>
-              <FieldLabel>Photos du dégât <span className="font-semibold" style={{ color: "#9aa39e" }}>(optionnel · max {MAX_PHOTOS})</span></FieldLabel>
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic" multiple className="hidden" onChange={(e) => processFiles(e.target.files)} />
-              {photos.length < MAX_PHOTOS && (
-                <div onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false); processFiles(e.dataTransfer.files); }}
-                  className="rounded-[14px] p-7 text-center cursor-pointer transition-all"
-                  style={{ border: dragOver ? "2px dashed #1D9E75" : "2px dashed #cdd6d1", background: dragOver ? "#F0FAF5" : "#FAFBFB" }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="mx-auto mb-2">
-                    <path d="M12 16V4m0 0L8 8m4-4l4 4" stroke="#1D9E75" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="#9aa39e" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <div className="font-bold text-[14px]">Glissez vos photos ici</div>
-                  <div className="text-[12.5px] mt-1" style={{ color: "#6B7280" }}>ou cliquez · JPG, PNG, WEBP (max {MAX_SIZE_MB} Mo)</div>
-                </div>
-              )}
-              {photos.length > 0 && (
-                <div className="mt-3 flex flex-col gap-3">
-                  {photos.map((photo) => (
-                    <div key={photo.dataUrl} className="rounded-[14px] p-3 flex gap-4 items-center" style={{ border: "1px solid #EAEFED" }}>
-                      <div className="flex-shrink-0 w-[100px] h-[76px] rounded-[10px] overflow-hidden relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photo.dataUrl} alt={photo.name} className="w-full h-full object-cover" />
-                        {photo.processing && (
-                          <>
-                            <div className="absolute inset-0" style={{ background: "rgba(15,92,68,.35)" }} />
-                            <div className="absolute left-0 right-0 h-[3px]" style={{ background: "linear-gradient(90deg,transparent,#1D9E75,transparent)", animation: "mgScan 1.6s linear infinite" }} />
-                          </>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        {photo.processing ? (
-                          <>
-                            <div className="flex items-center gap-2 font-bold text-[13.5px]" style={{ color: "#0F5C44" }}>
-                              <div className="w-3.5 h-3.5 rounded-full border-[2px] border-[#cdeadd] border-t-[#1D9E75] flex-shrink-0" style={{ animation: "mgSpin .7s linear infinite" }} />
-                              Analyse en cours…
-                            </div>
-                            <div className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>Détection et floutage de la plaque</div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-bold text-[12px] mb-1" style={{ background: "#E8F6F0", color: "#0F5C44" }}>
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#0F5C44" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                              Plaque masquée ✓
-                            </div>
-                            <div className="text-[12px] truncate" style={{ color: "#6B7280" }}>{photo.name} · {(photo.size / 1024 / 1024).toFixed(1)} Mo</div>
-                          </>
-                        )}
-                      </div>
-                      <button onClick={() => setPhotos((p) => p.filter((x) => x.dataUrl !== photo.dataUrl))}
-                        className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center border-0 cursor-pointer" style={{ background: "#F4F6F5", color: "#6B7280" }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <label className="block font-bold text-[13px] mt-5 mb-2">Description du dégât <Req /> <span className="font-semibold" style={{ color: "#9aa39e" }}>(min. 10 car.)</span></label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="Ex : impact apparu ce matin, situé à 10 cm du bord conducteur…"
-                rows={3} className="w-full rounded-[11px] px-3.5 py-3 text-[14px] outline-none resize-y" style={{ border: "1px solid #EAEFED" }} />
-            </div>
-          )}
+            </fieldset>
 
-          {/* ── STEP 3 — Coordonnées ── */}
-          {step === 3 && (
-            <div className="animate-mgFade">
-              <h2 className="m-0 mb-1 text-[19px] font-extrabold">Vos coordonnées</h2>
-              <p className="m-0 mb-6 text-[13.5px]" style={{ color: "#6B7280" }}>Transmises uniquement aux réparateurs qui répondent à votre demande.</p>
-              <FieldLabel>Prénom <Req /></FieldLabel>
-              <InputField value={prenom} onChange={setPrenom} placeholder="Votre prénom" />
-              <FieldLabel>Téléphone <Req /></FieldLabel>
-              <input type="tel" value={tel} onChange={(e) => { const d = e.target.value.replace(/\D/g, "").slice(0, 10); setTel(d); }} placeholder="0644972408" maxLength={10}
-                className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none"
-                style={{ border: `1px solid ${tel.length > 0 && tel.replace(/\D/g,"").length !== 10 ? "#D85A30" : "#EAEFED"}` }} />
-              {tel.length > 0 && tel.replace(/\D/g,"").length !== 10 && <p className="mt-1 text-[11.5px] font-bold" style={{ color: "#D85A30" }}>Numéro invalide (10 chiffres requis)</p>}
-              <FieldLabel>Email <Req /></FieldLabel>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@email.com"
-                className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none"
-                style={{ border: "1px solid #EAEFED" }} />
-              {/* Lieu d'intervention */}
-              <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
-                <div className="font-bold text-[14px] mb-1">Lieu d'intervention <span style={{ color: "#D85A30" }}>*</span></div>
-                <p className="text-[12.5px] m-0 mb-3" style={{ color: "#6B7280" }}>Le réparateur se déplace à votre domicile ou sur votre lieu de travail.</p>
-                <div className="flex gap-2.5 mb-3">
-                  {([
-                    { value: "domicile", label: "🏠 Domicile" },
-                    { value: "travail",  label: "🏢 Lieu de travail" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setLieuType(opt.value)}
-                      className="flex-1 rounded-[10px] py-2.5 text-[13px] font-bold border-0 cursor-pointer transition-all"
-                      style={lieuType === opt.value
-                        ? { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
-                        : { background: "#fff", color: "#3d4b44", border: "1px solid #EAEFED" }
-                      }
-                    >
-                      {opt.label}
-                    </button>
+            {/* 2 — Véhicule : marque puis modèle dépendant */}
+            <div className="flex flex-col gap-4">
+              <div>
+                <Label htmlFor="marque">
+                  Marque <Req />
+                </Label>
+                <select
+                  id="marque"
+                  value={marque}
+                  onChange={(event) => {
+                    setMarque(event.target.value);
+                    setModele("");
+                    setModeleAutre("");
+                    clearError("marque");
+                    clearError("modele");
+                  }}
+                  required
+                  aria-invalid={errors.marque ? true : undefined}
+                  aria-describedby={errors.marque ? "err-marque" : undefined}
+                  className={`${inputClass(Boolean(errors.marque))} cursor-pointer`}
+                >
+                  <option value="" disabled>
+                    Choisir la marque…
+                  </option>
+                  {MARQUES.map((nom) => (
+                    <option key={nom} value={nom}>
+                      {nom}
+                    </option>
                   ))}
-                </div>
-                {lieuType && (
+                  <option value={AUTRE_MARQUE}>Autre marque</option>
+                </select>
+                {marque === AUTRE_MARQUE && (
                   <input
+                    id="marque-autre"
                     type="text"
-                    value={lieuAdresse}
-                    onChange={(e) => setLieuAdresse(e.target.value)}
-                    placeholder={lieuType === "domicile" ? "12 rue des Lilas, 75011 Paris" : "25 avenue de la Gare, 69001 Lyon"}
-                    className="w-full rounded-[11px] px-3.5 py-3 text-[14px] font-medium outline-none"
-                    style={{ border: "1px solid #EAEFED", background: "#fff" }}
+                    value={marqueAutre}
+                    onChange={(event) => {
+                      setMarqueAutre(event.target.value);
+                      clearError("marque");
+                    }}
+                    placeholder="Précisez la marque"
+                    autoComplete="off"
+                    aria-label="Précisez la marque"
+                    className={`${inputClass(Boolean(errors.marque))} mt-2`}
                   />
                 )}
+                <FieldError id="err-marque" message={errors.marque} />
               </div>
 
-              {/* Calendrier RDV */}
-              <div className="mt-5 rounded-[13px] p-4" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
-                <div className="font-bold text-[14px] mb-1">Date du rendez-vous <span style={{ color: "#D85A30" }}>*</span></div>
-                <p className="text-[12.5px] m-0 mb-3" style={{ color: "#6B7280" }}>Indiquez vos préférences. Un agent MinuteGlass vous rappellera pour <strong>confirmer</strong> la date et le créneau définitifs.</p>
-                <select
-                  value={rdvDate}
-                  onChange={(e) => setRdvDate(e.target.value)}
-                  className="w-full rounded-[11px] px-3.5 py-3 text-[14px] font-semibold outline-none mb-3"
-                  style={{ border: `1px solid ${rdvDate ? "#1D9E75" : "#EAEFED"}`, background: "#fff", color: rdvDate ? "#11211B" : "#9aa39e" }}
-                >
-                  <option value="">Choisir une date…</option>
-                  {availableDates.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </select>
-                <div className="font-bold text-[13px] mb-2">Créneau horaire <span style={{ color: "#D85A30" }}>*</span></div>
-                <div className="grid grid-cols-3 gap-2">
-                  {RDV_SLOTS.map((slot) => (
-                    <button
-                      key={slot.value}
-                      type="button"
-                      onClick={() => setRdvSlot(slot.value)}
-                      className="rounded-[10px] py-2.5 text-[13px] font-bold border-0 cursor-pointer transition-all"
-                      style={rdvSlot === slot.value
-                        ? { background: "#1D9E75", color: "#fff", boxShadow: "0 4px 12px rgba(29,158,117,.25)" }
-                        : { background: "#fff", color: "#3d4b44", border: "1px solid #EAEFED" }
-                      }
-                    >
-                      {slot.label}
-                    </button>
-                  ))}
-                </div>
-                {rdvDate && rdvSlot && (
-                  <div className="mt-3 rounded-[9px] px-3 py-2.5 flex items-center gap-2" style={{ background: "#E8F6F0" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#0F5C44" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    <span className="text-[12.5px] font-bold" style={{ color: "#0F5C44" }}>
-                      RDV prévu le {new Date(rdvDate).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} · {rdvSlot}
-                    </span>
-                  </div>
+              <div>
+                <Label htmlFor="modele">
+                  Modèle <Req />
+                </Label>
+                {marque === AUTRE_MARQUE ? (
+                  <input
+                    id="modele-autre"
+                    type="text"
+                    value={modeleAutre}
+                    onChange={(event) => {
+                      setModeleAutre(event.target.value);
+                      clearError("modele");
+                    }}
+                    placeholder="Précisez le modèle"
+                    autoComplete="off"
+                    aria-label="Précisez le modèle"
+                    className={inputClass(Boolean(errors.modele))}
+                  />
+                ) : (
+                  <select
+                    id="modele"
+                    value={modele}
+                    onChange={(event) => {
+                      setModele(event.target.value);
+                      clearError("modele");
+                    }}
+                    disabled={!marque}
+                    required
+                    aria-invalid={errors.modele ? true : undefined}
+                    aria-describedby={errors.modele ? "err-modele" : undefined}
+                    className={`${inputClass(Boolean(errors.modele))} cursor-pointer disabled:cursor-not-allowed disabled:bg-[#F4F6F5] disabled:text-[#9aa39e]`}
+                  >
+                    <option value="" disabled>
+                      {marque ? "Choisir le modèle…" : "Choisissez d’abord la marque"}
+                    </option>
+                    {modelesPour(marque).map((nom) => (
+                      <option key={nom} value={nom}>
+                        {nom}
+                      </option>
+                    ))}
+                    <option value={AUTRE_MODELE}>Mon modèle n’est pas dans la liste</option>
+                  </select>
                 )}
-                <div className="mt-2.5 rounded-[9px] px-3 py-2.5 flex items-start gap-2" style={{ background: "#FFF7E8" }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10" stroke="#B7791F" strokeWidth="2"/><path d="M12 8v4m0 4h.01" stroke="#B7791F" strokeWidth="2" strokeLinecap="round"/></svg>
-                  <p className="text-[12px] font-semibold m-0 leading-relaxed" style={{ color: "#B7791F" }}>
-                    Date et créneau <strong>provisoires</strong> — un agent vous contactera par téléphone pour confirmer.
-                  </p>
+                {marque !== AUTRE_MARQUE && modele === AUTRE_MODELE && (
+                  <input
+                    id="modele-libre"
+                    type="text"
+                    value={modeleAutre}
+                    onChange={(event) => {
+                      setModeleAutre(event.target.value);
+                      clearError("modele");
+                    }}
+                    placeholder="Précisez le modèle"
+                    autoComplete="off"
+                    aria-label="Précisez le modèle"
+                    className={`${inputClass(Boolean(errors.modele))} mt-2`}
+                  />
+                )}
+                <FieldError id="err-modele" message={errors.modele} />
+              </div>
+            </div>
+
+            {/* 3 — Code postal */}
+            <div>
+              <Label htmlFor="cp">
+                Code postal <Req />
+              </Label>
+              <input
+                id="cp"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={5}
+                autoComplete="postal-code"
+                value={cp}
+                onChange={(event) => {
+                  setCp(event.target.value.replace(/\D/g, "").slice(0, 5));
+                  clearError("cp");
+                }}
+                placeholder="69001"
+                required
+                aria-invalid={errors.cp ? true : undefined}
+                aria-describedby={errors.cp ? "err-cp" : undefined}
+                className={inputClass(Boolean(errors.cp))}
+              />
+              <FieldError id="err-cp" message={errors.cp} />
+            </div>
+
+            {/* 4 — Téléphone */}
+            <div>
+              <Label htmlFor="phone" hint="Pour être rappelé">
+                Téléphone <Req />
+              </Label>
+              <input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(event) => {
+                  setPhone(event.target.value.replace(/[^\d+\s.\-()/]/g, ""));
+                  clearError("phone");
+                }}
+                placeholder="06 12 34 56 78"
+                required
+                aria-invalid={errors.phone ? true : undefined}
+                aria-describedby={errors.phone ? "err-phone" : undefined}
+                className={inputClass(Boolean(errors.phone))}
+              />
+              <FieldError id="err-phone" message={errors.phone} />
+            </div>
+
+            {/* 5 — Email */}
+            <div>
+              <Label htmlFor="email">
+                Email <Req />
+              </Label>
+              <input
+                id="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  clearError("email");
+                }}
+                placeholder="vous@email.com"
+                required
+                aria-invalid={errors.email ? true : undefined}
+                aria-describedby={
+                  errors.email ? "err-email email-hint" : "email-hint"
+                }
+                className={inputClass(Boolean(errors.email))}
+              />
+              <p id="email-hint" className="mt-1.5 text-[12px] font-medium text-[#6B7280]">
+                Pour recevoir la confirmation
+              </p>
+              <FieldError id="err-email" message={errors.email} />
+            </div>
+
+            {/* 6 — Assurance bris de glace */}
+            <fieldset
+              className="m-0 border-0 p-0"
+              aria-invalid={errors.insurance ? true : undefined}
+            >
+              <legend className="mb-2 p-0 text-[13.5px] font-bold text-[#11211B]">
+                Assurance bris de glace <Req />
+              </legend>
+              <div className="grid grid-cols-3 gap-2">
+                {INSURANCES.map((option) => (
+                  <label key={option.value} className="relative block cursor-pointer">
+                    <input
+                      id={`insurance-${option.value}`}
+                      type="radio"
+                      name="insurance"
+                      value={option.value}
+                      checked={insurance === option.value}
+                      onChange={() => {
+                        setInsurance(option.value);
+                        clearError("insurance");
+                        clearError("assureur");
+                      }}
+                      className="peer sr-only"
+                    />
+                    <span className="flex h-12 items-center justify-center rounded-[12px] border border-[#EAEFED] bg-white px-2 text-center text-[13px] font-bold leading-tight text-[#3d4b44] transition-colors peer-checked:border-[#1D9E75] peer-checked:bg-[#E8F6F0] peer-checked:text-[#0F5C44] peer-focus-visible:ring-2 peer-focus-visible:ring-[#1D9E75] peer-focus-visible:ring-offset-2">
+                      {option.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <FieldError id="err-insurance" message={errors.insurance} />
+
+              {insurance === "oui" && (
+                <div className="mt-4 animate-mgFade">
+                  <Label htmlFor="insurer">
+                    Nom de votre assurance <Req />
+                  </Label>
+                  <select
+                    id="insurer"
+                    value={insurer}
+                    onChange={(event) => {
+                      setInsurer(event.target.value);
+                      setInsurerAutre("");
+                      clearError("assureur");
+                    }}
+                    required
+                    aria-invalid={errors.assureur ? true : undefined}
+                    aria-describedby={errors.assureur ? "err-assureur" : undefined}
+                    className={`${inputClass(Boolean(errors.assureur))} cursor-pointer`}
+                  >
+                    <option value="" disabled>
+                      Choisir votre assureur…
+                    </option>
+                    {ASSUREURS.map((nom) => (
+                      <option key={nom} value={nom}>
+                        {nom}
+                      </option>
+                    ))}
+                  </select>
+                  {insurer === "Autre" && (
+                    <input
+                      id="insurer-autre"
+                      type="text"
+                      value={insurerAutre}
+                      onChange={(event) => {
+                        setInsurerAutre(event.target.value);
+                        clearError("assureur");
+                      }}
+                      placeholder="Nom de votre assureur"
+                      autoComplete="organization"
+                      aria-label="Nom de votre assureur"
+                      className={`${inputClass(Boolean(errors.assureur))} mt-2`}
+                    />
+                  )}
+                  <FieldError id="err-assureur" message={errors.assureur} />
                 </div>
-              </div>
+              )}
+            </fieldset>
 
-              <div className="mt-4 rounded-[12px] p-3.5 flex items-start gap-3" style={{ background: "#F4F6F5" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-0.5"><rect x="5" y="11" width="14" height="9" rx="2" stroke="#1D9E75" strokeWidth="2"/><path d="M8 11V8a4 4 0 018 0v3" stroke="#1D9E75" strokeWidth="2"/></svg>
-                <p className="text-[12.5px] font-semibold leading-relaxed m-0" style={{ color: "#6B7280" }}>
-                  Vos coordonnées restent masquées tant qu'aucun réparateur n'a débloqué votre fiche. Conforme RGPD.
-                </p>
-              </div>
+            {/* 7 — Prénom (facultatif) */}
+            <div>
+              <Label htmlFor="first-name" hint="Facultatif">
+                Prénom
+              </Label>
+              <input
+                id="first-name"
+                type="text"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                placeholder="Votre prénom"
+                className={inputClass(false)}
+              />
+            </div>
 
-              {/* Consentement contact — OBLIGATOIRE */}
+            {/* 8 — Consentement */}
+            <div>
               <label
-                className="mt-4 flex gap-3 items-start cursor-pointer rounded-[12px] p-3.5"
+                htmlFor="consent"
+                className="flex cursor-pointer items-start gap-3 rounded-[13px] border p-3.5 transition-colors"
                 style={{
-                  background: consentContact ? "#F0FAF5" : "#FAFBFB",
-                  border: `1.5px solid ${consentContact ? "#1D9E75" : "#EAEFED"}`,
-                  transition: "border-color 0.15s, background 0.15s",
+                  borderColor: consent ? "#1D9E75" : errors.consent ? "#D85A30" : "#EAEFED",
+                  background: consent ? "#F0FAF5" : "#FAFBFB",
                 }}
               >
                 <input
+                  id="consent"
                   type="checkbox"
-                  checked={consentContact}
-                  onChange={(e) => setConsentContact(e.target.checked)}
-                  className="mt-0.5 flex-shrink-0 cursor-pointer"
-                  style={{ width: 17, height: 17, accentColor: "#1D9E75" }}
+                  checked={consent}
+                  onChange={(event) => {
+                    setConsent(event.target.checked);
+                    clearError("consent");
+                  }}
+                  required
+                  aria-invalid={errors.consent ? true : undefined}
+                  aria-describedby={errors.consent ? "err-consent" : undefined}
+                  className="mt-0.5 h-[18px] w-[18px] flex-shrink-0 cursor-pointer accent-[#1D9E75]"
                 />
-                <span className="text-[12.5px] leading-relaxed font-semibold" style={{ color: "#3d4b44" }}>
-                  {CONSENT_TEXT}{" "}
-                  <span style={{ color: "#D85A30" }}>*</span>
+                <span className="text-[12.5px] font-semibold leading-relaxed text-[#3d4b44]">
+                  {CONSENT_TEXT} <Req />
                 </span>
               </label>
-              <p className="mt-1.5 text-[11.5px] font-medium" style={{ color: "#9aa39e" }}>
-                En soumettant ce formulaire, vous acceptez notre{" "}
-                <a href="/politique-confidentialite" target="_blank" rel="noopener noreferrer" style={{ color: "#1D9E75", fontWeight: 600 }}>
+              <p className="mt-1.5 text-[11.5px] font-medium text-[#9aa39e]">
+                En envoyant ce formulaire, vous acceptez notre{" "}
+                <Link
+                  href="/politique-confidentialite"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-[#1D9E75] underline underline-offset-2"
+                >
                   politique de confidentialité
-                </a>.
+                </Link>
+                .
               </p>
-              {!consentContact && (
-                <p className="text-[11.5px] font-bold mt-1" style={{ color: "#D85A30" }}>
-                  Ce consentement est obligatoire pour envoyer votre demande.
+              <FieldError id="err-consent" message={errors.consent} />
+            </div>
+
+            {/* 9 — Précision facultative */}
+            {!showDescription ? (
+              <button
+                type="button"
+                onClick={() => setShowDescription(true)}
+                className="self-start border-0 bg-transparent p-0 text-[13px] font-bold text-[#0F5C44] underline decoration-[#1D9E75] decoration-2 underline-offset-4"
+              >
+                Ajouter une précision (facultatif)
+              </button>
+            ) : (
+              <div className="animate-mgFade">
+                <Label htmlFor="description" hint="300 caractères max.">
+                  Précision (facultatif)
+                </Label>
+                <textarea
+                  id="description"
+                  rows={3}
+                  maxLength={300}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Ex. impact côté passager, fissure de 10 cm…"
+                  aria-describedby="description-count"
+                  className="w-full resize-y rounded-[12px] border border-[#EAEFED] bg-white px-3.5 py-3 text-[16px] font-semibold text-[#11211B] outline-none transition-colors placeholder:font-medium placeholder:text-[#9aa39e] focus:border-[#1D9E75] focus:shadow-[0_0_0_3px_rgba(29,158,117,.18)]"
+                />
+                <p
+                  id="description-count"
+                  className="mt-1 text-right text-[11.5px] font-medium text-[#9aa39e]"
+                >
+                  {description.length}/300
                 </p>
-              )}
-            </div>
-          )}
-
-          {/* ── STEP 4 — Confirmation + Compte ── */}
-          {step === 4 && (
-            <div className="animate-mgFade">
-              <h2 className="m-0 mb-1 text-[19px] font-extrabold">Confirmation</h2>
-              <p className="m-0 mb-5 text-[13.5px]" style={{ color: "#6B7280" }}>Vérifiez votre demande avant publication.</p>
-
-              {/* Récap */}
-              <div className="rounded-[14px] p-4 flex gap-4 mb-5" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
-                <div className="flex-shrink-0 w-24 h-20 rounded-[10px] overflow-hidden" style={{ background: "linear-gradient(150deg,#cfd9d4,#e8eeeb)" }}>
-                  {photos.length > 0
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={photos[0].dataUrl} alt="Photo" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#9aa39e" strokeWidth="1.5"/><circle cx="9" cy="10" r="2" stroke="#9aa39e" strokeWidth="1.5"/><path d="M3 17l4-4 3 3 3-4 5 5" stroke="#9aa39e" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                      </div>
-                  }
-                </div>
-                <div className="flex-1 grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Véhicule", value: `${marque} ${modele} · ${annee}` },
-                    { label: "Localisation", value: `${ville} (${cp})` },
-                    { label: "Intervention", value: INTERV_LABELS[intervention ?? "remplacement"] },
-                    { label: "Assurance", value: insurance === "oui" ? "Oui, assuré" : "Non / ne sais pas" },
-                    { label: "RDV", value: rdvDate && rdvSlot ? `${new Date(rdvDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · ${rdvSlot}` : "—" },
-                    { label: "Lieu", value: lieuType ? `${lieuType === "domicile" ? "Domicile" : "Travail"} — ${lieuAdresse}` : "—" },
-                  ].map((row) => (
-                    <div key={row.label}>
-                      <div className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "#9aa39e" }}>{row.label}</div>
-                      <div className="font-bold text-[13.5px] mt-0.5">{row.value}</div>
-                    </div>
-                  ))}
-                </div>
               </div>
-
-              {/* Création compte si pas connecté */}
-              {!alreadyAuth && (
-                <div className="rounded-[14px] p-5 mb-5" style={{ background: "#F6FBF9", border: "1px solid #cdeadd" }}>
-                  <div className="font-extrabold text-[15px] mb-1" style={{ color: "#0F5C44" }}>Créez votre espace gratuit</div>
-                  <p className="text-[12.5px] font-semibold mb-4 m-0" style={{ color: "#6B7280" }}>
-                    Pour suivre vos demandes et échanger avec les réparateurs.
-                  </p>
-                  <div className="rounded-[10px] px-3.5 py-3 text-[14px] font-semibold mb-3" style={{ background: "#EAEFED", color: "#9aa39e" }}>
-                    {email}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPwd ? "text" : "password"}
-                      placeholder="Choisissez un mot de passe (6 car. min)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-[11px] px-3.5 py-3 text-[14px] outline-none"
-                      style={{ border: "1px solid #EAEFED", paddingRight: "44px" }}
-                    />
-                    <button type="button" onClick={() => setShowPwd((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 border-0 bg-transparent cursor-pointer p-0" style={{ color: "#9aa39e" }}>
-                      {showPwd
-                        ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                        : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
-                      }
-                    </button>
-                  </div>
-                  <p className="text-[11.5px] font-semibold mt-2 mb-0" style={{ color: "#9aa39e" }}>
-                    Déjà un compte ?{" "}
-                    <a href="/connexion" className="no-underline font-bold" style={{ color: "#1D9E75" }}>Se connecter</a>
-                  </p>
-                </div>
-              )}
-
-              {/* CGU */}
-              <label className="flex gap-3 items-start cursor-pointer rounded-[11px] p-3.5" style={{ background: "#FAFBFB", border: "1px solid #EEF2F0" }}>
-                <input type="checkbox" checked={cgu} onChange={(e) => setCgu(e.target.checked)}
-                  className="mt-0.5 cursor-pointer" style={{ width: 17, height: 17, accentColor: "#1D9E75" }} />
-                <span className="text-[12.5px] leading-relaxed" style={{ color: "#3d4b44" }}>
-                  J'accepte les <a href="/cgu" target="_blank" rel="noopener noreferrer" style={{ color: "#1D9E75", fontWeight: 700, textDecoration: "underline" }}>conditions générales d'utilisation</a> et la <a href="/politique-confidentialite" target="_blank" rel="noopener noreferrer" style={{ color: "#1D9E75", fontWeight: 700, textDecoration: "underline" }}>politique de confidentialité</a>.
-                  Mes coordonnées restent masquées jusqu'au déblocage par un réparateur (conforme RGPD).
-                </span>
-              </label>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-6 pt-5" style={{ borderTop: "1px solid #EAEFED" }}>
-            {step === 1
-              ? <Link href="/" className="bg-transparent border-0 font-bold text-[14px] cursor-pointer no-underline" style={{ color: "#6B7280" }}>Annuler</Link>
-              : <button onClick={prev} className="font-bold text-[14px] rounded-[11px] px-5 py-3 cursor-pointer" style={{ background: "#fff", border: "1px solid #EAEFED", color: "#11211B" }}>Précédent</button>
-            }
-            {step < 4
-              ? <button onClick={next}
-                  disabled={step === 1 ? !canStep1 : step === 2 ? !canStep2 : !canStep3}
-                  className="font-bold text-[14px] text-white rounded-[11px] px-6 py-3 border-0 cursor-pointer disabled:cursor-not-allowed transition-all"
-                  style={{ background: (step === 1 ? canStep1 : step === 2 ? canStep2 : canStep3) ? "#1D9E75" : "#cdd6d1", boxShadow: "0 4px 12px rgba(29,158,117,.3)" }}>
-                  Continuer
-                </button>
-              : <button onClick={publish} disabled={!canStep4}
-                  className="font-bold text-[14px] text-white rounded-[11px] px-6 py-3 border-0 cursor-pointer disabled:cursor-not-allowed"
-                  style={{ background: canStep4 ? "#1D9E75" : "#cdd6d1", boxShadow: "0 4px 12px rgba(29,158,117,.3)" }}>
-                  Publier ma demande
-                </button>
-            }
+            )}
           </div>
-        </div>
+
+          {/* CTA — collé en bas sur mobile */}
+          <div
+            className="sticky bottom-0 z-30 -mx-5 mt-7 rounded-b-[20px] border-t border-[#EAEFED] bg-white/95 px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:mb-0 sm:mt-7 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+            style={{ bottom: cookieBannerHeight }}
+          >
+            <button
+              type="submit"
+              disabled={submitting}
+              className="h-12 w-full rounded-[12px] bg-[#1D9E75] text-[15px] font-extrabold text-white shadow-[0_4px_14px_rgba(29,158,117,.3)] transition-colors hover:bg-[#178a65] disabled:cursor-not-allowed disabled:bg-[#cdd6d1] disabled:shadow-none"
+            >
+              {submitting ? "Envoi…" : "Envoyer ma demande"}
+            </button>
+            <p className="mt-2 text-center text-[11px] font-medium leading-snug text-[#6B7280]">
+              Service gratuit pour le particulier. Vos coordonnées sont transmises aux
+              réparateurs de votre secteur.
+            </p>
+          </div>
+        </form>
       </main>
     </div>
   );
 }
 
-/* ── SuccessScreen ── */
-function SuccessScreen({ refNumber, vehicle, city, intervention, insurance, email }: {
-  refNumber: string; vehicle: string; city: string; intervention: string; insurance: string; email: string;
+/* ─── Écran de succès ─── */
+
+function SuccessScreen({
+  refNumber,
+  vehicle,
+  city,
+  intervention,
+}: {
+  refNumber: string;
+  vehicle: string;
+  city: string;
+  intervention: InterventionType;
 }) {
-  const steps = [
-    { icon: "👁️", label: "Votre annonce est visible", sub: "Les réparateurs de votre zone peuvent la consulter maintenant.", done: true },
-    { icon: "🔓", label: "Un partenaire débloque votre fiche", sub: "Il accède à vos coordonnées pour vous contacter directement.", done: false },
-    { icon: "📞", label: "Vous êtes contacté", sub: "Le réparateur vous appelle ou vous envoie un devis.", done: false },
-    { icon: "✅", label: "Vous choisissez votre prestataire", sub: "Comparez les offres et sélectionnez le meilleur.", done: false },
+  const recap = [
+    { icon: "🚗", label: "Véhicule", value: vehicle },
+    { icon: "📍", label: "Secteur", value: city },
+    { icon: "🔧", label: "Intervention", value: INTERV_LABELS[intervention] ?? intervention },
   ];
+
   return (
-    <div className="min-h-screen" style={{ background: "#F4F6F5" }}>
+    <div className="min-h-screen bg-[#F4F6F5]">
       <Navbar />
-      <main className="max-w-[680px] mx-auto px-4 sm:px-6 pt-10 pb-20 animate-mgFade">
-        <div className="bg-white rounded-[22px] p-8 text-center mb-5" style={{ border: "1px solid #EAEFED", boxShadow: "0 4px 20px rgba(17,33,27,.06)" }}>
-          <div className="w-[80px] h-[80px] rounded-full mx-auto flex items-center justify-center mb-5" style={{ background: "linear-gradient(150deg,#E8F6F0,#cdeadd)" }}>
-            <svg width="38" height="38" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#1D9E75" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <main className="mx-auto w-full max-w-[600px] animate-mgFade px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
+        <section className="rounded-[22px] border border-[#EAEFED] bg-white p-6 text-center shadow-[0_4px_20px_rgba(17,33,27,.06)] sm:p-8">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[linear-gradient(150deg,#E8F6F0,#cdeadd)]">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M5 12.5l4.5 4.5L19 7"
+                stroke="#1D9E75"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </div>
-          <h1 className="m-0 text-[28px] font-extrabold tracking-tight">Demande publiée !</h1>
-          <p className="mt-2.5 mb-0 text-[14.5px] leading-relaxed font-medium mx-auto max-w-[420px]" style={{ color: "#6B7280" }}>
-            Les réparateurs de votre zone vont vous contacter directement.
+          <h1 className="m-0 text-[25px] font-extrabold tracking-tight text-[#11211B] sm:text-[28px]">
+            Demande enregistrée !
+          </h1>
+          <p className="mx-auto mt-2.5 max-w-[420px] text-[14.5px] font-medium leading-relaxed text-[#6B7280]">
+            Votre demande est enregistrée. Un réparateur de votre secteur peut vous contacter.
           </p>
-          <div className="inline-flex items-center gap-3 mt-5 rounded-[13px] px-5 py-3" style={{ background: "#F4F6F5", border: "1px dashed #c8d5ce" }}>
+          <div className="mt-5 inline-flex items-center gap-3 rounded-[13px] border border-dashed border-[#c8d5ce] bg-[#F4F6F5] px-5 py-3">
             <div className="text-left">
-              <div className="text-[10.5px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#9aa39e" }}>Référence dossier</div>
-              <div className="text-[20px] font-extrabold tracking-wider" style={{ color: "#0F5C44" }}>{refNumber}</div>
+              <div className="mb-0.5 text-[10.5px] font-bold uppercase tracking-widest text-[#9aa39e]">
+                Référence dossier
+              </div>
+              <div className="text-[20px] font-extrabold tracking-wider text-[#0F5C44]">
+                {refNumber}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-[18px] p-6 mb-5" style={{ border: "1px solid #EAEFED" }}>
-          <h2 className="m-0 mb-4 text-[15px] font-extrabold">Récapitulatif</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: "🚗", label: "Véhicule", value: vehicle },
-              { icon: "📍", label: "Localisation", value: city },
-              { icon: "🔧", label: "Intervention", value: INTERV_LABELS[intervention] ?? intervention },
-              { icon: "🛡️", label: "Assurance", value: insurance === "avec" ? "Avec prise en charge" : "Sans assurance" },
-            ].map(({ icon, label, value }) => (
-              <div key={label} className="rounded-[12px] p-3.5" style={{ background: "#F8FAFA", border: "1px solid #EAEFED" }}>
-                <div className="text-[18px] mb-1">{icon}</div>
-                <div className="text-[10.5px] font-bold uppercase tracking-wider mb-0.5" style={{ color: "#9aa39e" }}>{label}</div>
-                <div className="font-bold text-[13.5px]">{value}</div>
+
+          <Link
+            href="/"
+            className="mt-6 flex h-12 w-full items-center justify-center rounded-[12px] bg-[#1D9E75] text-[15px] font-extrabold text-white no-underline shadow-[0_4px_14px_rgba(29,158,117,.3)] transition-colors hover:bg-[#178a65]"
+          >
+            Retour à l’accueil
+          </Link>
+        </section>
+
+        <section className="mt-4 rounded-[18px] border border-[#EAEFED] bg-white p-5 sm:p-6">
+          <h2 className="m-0 mb-4 text-[15px] font-extrabold text-[#11211B]">Récapitulatif</h2>
+          <div className="grid gap-2.5 sm:grid-cols-3">
+            {recap.map(({ icon, label, value }) => (
+              <div
+                key={label}
+                className="rounded-[12px] border border-[#EAEFED] bg-[#F8FAFA] p-3.5"
+              >
+                <div className="mb-1 text-[18px]" aria-hidden="true">
+                  {icon}
+                </div>
+                <div className="mb-0.5 text-[10.5px] font-bold uppercase tracking-wider text-[#9aa39e]">
+                  {label}
+                </div>
+                <div className="text-[13.5px] font-bold text-[#11211B]">{value}</div>
               </div>
             ))}
           </div>
-        </div>
-        <div className="bg-white rounded-[18px] p-6 mb-5" style={{ border: "1px solid #EAEFED" }}>
-          <h2 className="m-0 mb-5 text-[15px] font-extrabold">Que se passe-t-il maintenant ?</h2>
-          {steps.map((s, i) => (
-            <div key={i} className="flex gap-3.5 relative">
-              {i < steps.length - 1 && <div className="absolute left-[19px] top-[42px] bottom-0 w-[2px]" style={{ background: "#EAEFED" }} />}
-              <div className="flex-shrink-0 w-[38px] h-[38px] rounded-full flex items-center justify-center text-[16px] z-10"
-                style={{ background: s.done ? "#E8F6F0" : "#F4F6F5", border: s.done ? "2px solid #1D9E75" : "2px solid #EAEFED" }}>
-                {s.icon}
-              </div>
-              <div className="pb-5">
-                <div className="font-bold text-[14px]" style={{ color: s.done ? "#0F5C44" : "#11211B" }}>{s.label}</div>
-                <div className="text-[12.5px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{s.sub}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-3">
-          <Link href="/mes-demandes" className="no-underline flex-1">
-            <button className="w-full text-white border-0 rounded-[12px] px-6 py-3.5 font-bold text-[14.5px] cursor-pointer" style={{ background: "#1D9E75", boxShadow: "0 4px 14px rgba(29,158,117,.3)" }}>
-              Voir mes demandes
-            </button>
-          </Link>
-          <Link href="/" className="no-underline">
-            <button className="rounded-[12px] px-6 py-3.5 font-bold text-[14.5px] cursor-pointer" style={{ background: "#fff", color: "#11211B", border: "1px solid #EAEFED" }}>
-              Retour à l'accueil
-            </button>
-          </Link>
-        </div>
+        </section>
       </main>
     </div>
   );
-}
-
-/* ── Micro-components ── */
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="block text-[13px] font-bold mb-1.5 mt-4 first:mt-0">{children}</label>;
-}
-function Req() { return <span style={{ color: "#D85A30" }}>*</span>; }
-function InputField({ value, onChange, placeholder, type = "text" }: { value: string; onChange: (v: string) => void; placeholder: string; type?: string }) {
-  return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-    className="w-full rounded-[11px] px-3.5 py-3 text-[14.5px] outline-none" style={{ border: "1px solid #EAEFED" }} />;
-}
-function SelectField({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
-  return <select value={value} onChange={(e) => onChange(e.target.value)}
-    className="w-full rounded-[11px] px-3 py-3 text-[14px] font-semibold cursor-pointer outline-none bg-white" style={{ border: "1px solid #EAEFED", color: "#11211B" }}>
-    {options.map((o) => <option key={o}>{o}</option>)}
-  </select>;
-}
-function InsuranceBtn({ active, onClick, color, label }: { active: boolean; onClick: () => void; color: "green" | "orange"; label: string }) {
-  const green = color === "green";
-  return <button onClick={onClick} className="flex-1 rounded-[11px] py-3 font-bold text-[14px] cursor-pointer transition-all"
-    style={active
-      ? { border: `2px solid ${green ? "#1D9E75" : "#D85A30"}`, background: green ? "#E8F6F0" : "#FCEDE7", color: green ? "#0F5C44" : "#B0431F" }
-      : { border: "1px solid #EAEFED", background: "#fff", color: "#3d4b44" }}>
-    {label}
-  </button>;
 }

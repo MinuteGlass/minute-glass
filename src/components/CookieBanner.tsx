@@ -14,13 +14,18 @@ export function CookieBanner() {
   const [prefs, setPrefs] = useState<Consent>({ analytics: true, marketing: true });
 
   useEffect(() => {
-    const saved = localStorage.getItem("mg_cookie_consent");
-    if (!saved) setVisible(true);
+    // Lecture du consentement au montage : différée d'une frame pour ne pas
+    // déclencher de rendu en cascade (et rester identique côté SSR).
+    if (localStorage.getItem("mg_cookie_consent")) return;
+    const raf = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   function save(consent: Consent) {
     localStorage.setItem("mg_cookie_consent", JSON.stringify({ ...consent, date: new Date().toISOString() }));
     setVisible(false);
+    // Prévient les éléments fixes (ex. CTA sticky du formulaire) que la bannière se ferme.
+    requestAnimationFrame(() => window.dispatchEvent(new Event("mg-cookie-banner-change")));
     // Ici tu pourras déclencher le chargement de GA / Meta Pixel selon consent
     if (consent.analytics) loadAnalytics();
     if (consent.marketing) loadMarketing();
@@ -41,7 +46,7 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6" style={{ pointerEvents: "none" }}>
+    <div id="mg-cookie-banner" className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6" style={{ pointerEvents: "none" }}>
       <div
         className="max-w-[680px] mx-auto rounded-2xl p-5 sm:p-6"
         style={{

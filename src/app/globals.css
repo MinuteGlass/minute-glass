@@ -16,7 +16,8 @@
 
 body {
   margin: 0;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* Police chargée par next/font dans layout.tsx (fichier local src/app/fonts). */
+  font-family: var(--font-jakarta), system-ui, sans-serif;
   background: var(--mg-bg);
   color: var(--mg-text);
   -webkit-font-smoothing: antialiased;
