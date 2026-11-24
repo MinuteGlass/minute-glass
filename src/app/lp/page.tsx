@@ -324,48 +324,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Avis clients ── */}
-      <section style={{ background: "#F4F6F5", borderTop: "1px solid #EAEFED", borderBottom: "1px solid #EAEFED" }}>
-        <div className="max-w-[1200px] mx-auto px-6 py-16">
-          <div className="text-center mb-12">
-            <h2 className="m-0 text-[24px] lg:text-[32px] font-extrabold tracking-tight" style={{ color: "#11211B" }}>
-              Ils nous ont fait confiance
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              {
-                name: "[À REMPLACER — Prénom, Ville]",
-                text: "[À REMPLACER PAR UN VRAI AVIS — ex : \"Rappelé en moins d'une heure, réparation faite à domicile le lendemain. Très satisfait.\"]",
-                stars: 5,
-              },
-              {
-                name: "[À REMPLACER — Prénom, Ville]",
-                text: "[À REMPLACER PAR UN VRAI AVIS — ex : \"Service rapide et gratuit, le réparateur est venu chez moi. Je recommande.\"]",
-                stars: 5,
-              },
-              {
-                name: "[À REMPLACER — Prénom, Ville]",
-                text: "[À REMPLACER PAR UN VRAI AVIS — ex : \"Prise en charge assurance facilitée, tout s'est fait sans que j'aie à me déplacer.\"]",
-                stars: 5,
-              },
-            ].map((review, i) => (
-              <div key={i} className="bg-white rounded-[18px] p-7" style={{ border: "1px solid #EAEFED", boxShadow: "0 1px 4px rgba(17,33,27,.04)" }}>
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: review.stars }).map((_, j) => (
-                    <span key={j} style={{ color: "#F59E0B", fontSize: 18 }}>★</span>
-                  ))}
-                </div>
-                <p className="m-0 mb-4 text-[13.5px] font-medium leading-relaxed italic" style={{ color: "#6B7280" }}>
-                  {review.text}
-                </p>
-                <div className="font-bold text-[13px]" style={{ color: "#11211B" }}>{review.name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── FAQ ── */}
       <section className="max-w-[760px] mx-auto px-6 py-16">
         <div className="text-center mb-12">
