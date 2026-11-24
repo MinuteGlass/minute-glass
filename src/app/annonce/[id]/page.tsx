@@ -575,9 +575,9 @@ export default function AnnoncePage({ params }: { params: Promise<{ id: string }
                     <span className="font-bold text-[13.5px] select-none" style={{ filter: "blur(6px)", color: "#11211B" }}>contact@email.com</span>
                   </div>
                   {isParticulier ? (
-                    <Link href="/mes-demandes" className="no-underline">
+                    <Link href="/" className="no-underline">
                       <button className="w-full py-3 rounded-[11px] font-bold text-[14px] text-white border-0 cursor-pointer" style={{ background: "#1D9E75" }}>
-                        Voir mes offres reçues →
+                        Retour à l’accueil
                       </button>
                     </Link>
                   ) : isBlocked ? (

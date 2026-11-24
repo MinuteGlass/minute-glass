@@ -33,7 +33,7 @@ export default function ConnexionPage() {
     const { error, state } = await signIn(email, password);
     setLoading(false);
     if (error) { setError(error); return; }
-    router.push(state?.role === "partenaire" ? "/partenaire" : "/mes-demandes");
+    router.push(state?.role === "partenaire" ? "/partenaire" : "/");
   }
 
   async function handleForgot() {

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 import { getAuth } from "@/lib/auth";
-import { addLocalDemande } from "@/lib/demandes-store";
 import { toast } from "@/components/Toast";
 import { trackLead } from "@/lib/tracking";
 import type { InsuranceType, InterventionType } from "@/types";
@@ -323,7 +322,6 @@ export default function DeposerPage() {
           damage,
           phone: normalizedPhone,
           email: normalizedEmail,
-          name: clientName,
           availability: "À définir",
           consent_text: CONSENT_TEXT,
           consent_at: new Date().toISOString(),
@@ -342,32 +340,6 @@ export default function DeposerPage() {
         setSubmitting(false);
         return;
       }
-
-      let demandeId = `local-${Date.now()}`;
-      try {
-        const payload = (await res.json()) as { id?: string };
-        if (payload?.id) demandeId = String(payload.id);
-      } catch {
-        /* id serveur absent : l’identifiant local suffit pour l’historique */
-      }
-
-      // Historique local : alimente « Mes demandes » sans session.
-      addLocalDemande({
-        id: demandeId,
-        title: vehicleTitle,
-        city,
-        distance: "0 km",
-        age: "À l’instant",
-        insurance: insuranceValue,
-        intervention,
-        damage,
-        isNew: true,
-        isLocal: true,
-        clientName,
-        phone: normalizedPhone,
-        email: normalizedEmail,
-        availability: "À définir",
-      });
 
       // Notifications : ne bloquent jamais l’écran de succès.
       void fetch("/api/notify/new-demande", {

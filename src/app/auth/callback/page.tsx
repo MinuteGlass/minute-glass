@@ -41,7 +41,7 @@ export default function AuthCallback() {
       }
       // Met à jour le cache local via onAuthChange natif de Supabase (déclenché par getSession)
 
-      router.replace("/mes-demandes");
+      router.replace("/");
     }
 
     handle();

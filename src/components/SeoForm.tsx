@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { addLocalDemande } from "@/lib/demandes-store";
-import { setAuth, getAuth } from "@/lib/auth";
+import Link from "next/link";
 import type { InterventionType } from "@/types";
 
 const MARQUES = [
@@ -24,10 +22,9 @@ interface Props {
   ville: string;
 }
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 
 export function SeoForm({ intervention, ville }: Props) {
-  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
 
   /* Step 1 — Véhicule */
@@ -46,64 +43,65 @@ export function SeoForm({ intervention, ville }: Props) {
   const [tel, setTel]       = useState("");
   const [email, setEmail]   = useState("");
 
-  /* Step 4 — Compte */
-  const [password, setPassword]   = useState("");
-  const [showPwd, setShowPwd]     = useState(false);
+  /* Envoi */
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
+  const [error, setError]           = useState("");
 
   const step1Ok = marque && modele.trim() && annee;
   const step2Ok = zone && damage.trim().length >= 10 && insurance !== null && dispo;
   const telDigits = tel.replace(/\D/g, "");
   const telValid  = telDigits.length === 10;
   const step3Ok = prenom.trim() && telValid && email.trim().includes("@");
-  const step4Ok = password.length >= 6;
 
-  /* Si déjà connecté en particulier, on saute l'étape compte */
   function goToStep3() {
     setStep(3);
   }
 
-  function goToStep4() {
-    const auth = getAuth();
-    if (auth?.role === "particulier") {
-      submitDemande(auth.email);
-    } else {
-      setStep(4);
-    }
-  }
-
-  function submitDemande(userEmail?: string) {
-    addLocalDemande({
-      id: `seo-${Date.now()}`,
-      title: `${marque} ${modele} · ${annee}`,
-      city: ville,
-      distance: "—",
-      age: "À l'instant",
-      insurance: insurance!,
-      intervention,
-      damage,
-      damageZone: zone,
-      availability: dispo,
-      clientName: prenom,
-      phone: tel,
-      email: userEmail || email,
-      isNew: true,
-      isLocal: true,
-      region: "",
-    });
-  }
-
-  function createAccount() {
+  /* Envoi direct : aucun compte, aucune session particulier. */
+  async function submitLead() {
+    if (submitting) return;
     setSubmitting(true);
-    submitDemande(email);
-    setAuth("particulier", email, prenom);
-    router.push("/mes-demandes");
+    setError("");
+    try {
+      const res = await fetch("/api/demandes/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${marque} ${modele} · ${annee}`,
+          city: ville,
+          intervention,
+          insurance: insurance ?? "sans",
+          damage: zone ? `${zone} — ${damage.trim()}` : damage.trim(),
+          phone: telDigits,
+          email: email.trim().toLowerCase(),
+          name: prenom.trim(),
+          availability: dispo,
+        }),
+      });
+      if (!res.ok) {
+        let message = "Impossible d’envoyer votre demande. Réessayez dans un instant.";
+        try {
+          const payload = (await res.json()) as { error?: string };
+          if (payload?.error) message = payload.error;
+        } catch {
+          /* réponse non JSON */
+        }
+        setError(message);
+        setSubmitting(false);
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      setError("Connexion impossible. Vérifiez votre réseau et réessayez.");
+      setSubmitting(false);
+    }
   }
 
   /* ── UI helpers ── */
   const Progress = () => (
     <div className="flex items-center gap-1.5 mb-4">
-      {([1, 2, 3, 4] as Step[]).map((n) => (
+      {([1, 2, 3] as Step[]).map((n) => (
         <div key={n} className="h-1 rounded-full flex-1 transition-all duration-300"
           style={{ background: n <= step ? "#1D9E75" : "#EAEFED" }} />
       ))}
@@ -196,7 +194,7 @@ export function SeoForm({ intervention, ville }: Props) {
   );
 
   /* ── STEP 3 — Contact ── */
-  if (step === 3) return (
+  if (step === 3 && !submitted) return (
     <div>
       <Progress />
       <Label step={3}>Vos coordonnées</Label>
@@ -222,84 +220,40 @@ export function SeoForm({ intervention, ville }: Props) {
         </p>
         <div className="flex gap-2">
           <BtnBack onClick={() => setStep(2)} />
-          <BtnNext onClick={goToStep4} disabled={!step3Ok} />
+          <BtnNext
+            onClick={submitLead}
+            disabled={!step3Ok || submitting}
+            label={submitting ? "Envoi…" : "Envoyer ma demande"}
+          />
+          {error && (
+            <p role="alert" className="text-[12px] font-bold" style={{ color: "#D85A30" }}>
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
 
-  /* ── STEP 4 — Créer son compte ── */
+  /* ── Confirmation ── */
   return (
-    <div>
-      <Progress />
-
-      {/* Résumé de la demande */}
-      <div className="rounded-[11px] p-3.5 mb-4" style={{ background: "#F4F6F5" }}>
-        <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#9aa39e" }}>Votre demande</div>
-        <div className="flex flex-col gap-1">
-          {[
-            { label: "Véhicule", value: `${marque} ${modele} ${annee}` },
-            { label: "Zone", value: zone },
-            { label: "Assurance", value: insurance === "avec" ? "Tous risques" : "Sans assurance" },
-            { label: "Disponibilité", value: dispo },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex justify-between items-baseline gap-2">
-              <span className="text-[11.5px] font-semibold" style={{ color: "#9aa39e" }}>{label}</span>
-              <span className="text-[11.5px] font-bold text-right" style={{ color: "#11211B" }}>{value}</span>
-            </div>
-          ))}
-        </div>
+    <div className="text-center py-2">
+      <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-4" style={{ background: "#E8F6F0" }}>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+          <path d="M5 12.5l4.5 4.5L19 7" stroke="#1D9E75" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </div>
-
-      {/* Création compte */}
-      <div className="mb-3">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold text-white flex-shrink-0" style={{ background: "#1D9E75" }}>4</span>
-          <span className="text-[11.5px] font-bold uppercase tracking-wide" style={{ color: "#9aa39e" }}>Créez votre espace gratuit</span>
-        </div>
-        <p className="text-[12px] font-semibold mb-3 leading-relaxed" style={{ color: "#6B7280" }}>
-          Pour suivre vos demandes et échanger avec les réparateurs.
-        </p>
-        <div className="flex flex-col gap-2.5">
-          <input type="email" value={email} readOnly className={inputCls}
-            style={{ ...inputStyle, color: "#9aa39e", cursor: "default" }} />
-          <div className="relative">
-            <input
-              type={showPwd ? "text" : "password"}
-              placeholder="Choisissez un mot de passe (6 car. min)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputCls}
-              style={{ ...inputStyle, paddingRight: "44px" }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPwd((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 border-0 bg-transparent cursor-pointer p-0"
-              style={{ color: "#9aa39e" }}
-            >
-              {showPwd
-                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/></svg>
-              }
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <BtnBack onClick={() => setStep(3)} />
-        <BtnNext
-          onClick={createAccount}
-          disabled={!step4Ok || submitting}
-          label={submitting ? "Création…" : "Créer mon compte →"}
-        />
-      </div>
-
-      <p className="text-[10.5px] font-semibold text-center mt-2.5" style={{ color: "#9aa39e" }}>
-        Déjà un compte ?{" "}
-        <a href="/connexion" className="no-underline font-bold" style={{ color: "#1D9E75" }}>Se connecter</a>
+      <div className="font-extrabold text-[17px] mb-1.5" style={{ color: "#11211B" }}>Demande envoyée !</div>
+      <p className="text-[12.5px] font-semibold leading-relaxed mb-5" style={{ color: "#6B7280" }}>
+        Votre demande est enregistrée. Un réparateur de votre secteur peut vous contacter.
       </p>
+      <Link
+        href="/"
+        className="inline-flex items-center justify-center w-full py-3 rounded-[11px] font-extrabold text-[13.5px] text-white no-underline"
+        style={{ background: "#1D9E75" }}
+      >
+        Retour à l’accueil
+      </Link>
     </div>
   );
 }
