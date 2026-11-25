@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { updateAdsConsent } from "@/components/GoogleAdsTag";
 
 type Consent = {
   analytics: boolean;
@@ -11,7 +12,7 @@ type Consent = {
 export function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [prefs, setPrefs] = useState<Consent>({ analytics: true, marketing: true });
+  const [prefs, setPrefs] = useState<Consent>({ analytics: false, marketing: false });
 
   useEffect(() => {
     // Lecture du consentement au montage : différée d'une frame pour ne pas
@@ -26,9 +27,8 @@ export function CookieBanner() {
     setVisible(false);
     // Prévient les éléments fixes (ex. CTA sticky du formulaire) que la bannière se ferme.
     requestAnimationFrame(() => window.dispatchEvent(new Event("mg-cookie-banner-change")));
-    // Ici tu pourras déclencher le chargement de GA / Meta Pixel selon consent
-    if (consent.analytics) loadAnalytics();
-    if (consent.marketing) loadMarketing();
+    // Applique le choix au tag Google Ads (Consent Mode v2).
+    updateAdsConsent(consent.marketing);
   }
 
   function acceptAll() {
@@ -201,11 +201,3 @@ function CookieRow({
   );
 }
 
-/* Placeholders — remplace par tes vraies intégrations */
-function loadAnalytics() {
-  // ex: window.gtag('consent', 'update', { analytics_storage: 'granted' })
-}
-
-function loadMarketing() {
-  // ex: fbq('consent', 'grant')
-}

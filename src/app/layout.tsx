@@ -4,6 +4,7 @@ import "./globals.css";
 import { ToastContainer } from "@/components/Toast";
 import { Footer } from "@/components/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
+import { GoogleAdsTag } from "@/components/GoogleAdsTag";
 
 // Police enregistrée dans le projet (licence OFL, voir fonts/OFL.txt) : la compilation
 // ne dépend plus d'un téléchargement chez Google Fonts, qui faisait échouer Vercel.
@@ -30,6 +31,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <CookieBanner />
+        <GoogleAdsTag />
         <ToastContainer />
       </body>
     </html>

@@ -24,6 +24,8 @@ declare global {
 
 const ADS_ID = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID ?? "AW-XXXXXXXXX";
 const CONVERSION_LABEL = process.env.NEXT_PUBLIC_ADS_LEAD_LABEL ?? "LABEL_CONVERSION";
+const IS_CONFIGURED =
+  /^AW-\d+$/.test(ADS_ID) && /^[A-Za-z0-9_-]{6,}$/.test(CONVERSION_LABEL);
 
 type Lead = {
   intervention: "remplacement" | "reparation" | "vitre" | null;
@@ -36,8 +38,9 @@ export function leadValue({ intervention, insurance }: Lead): number {
 }
 
 export function trackLead(lead: Lead) {
+  if (!IS_CONFIGURED) return;
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
-  window.gtag("event", "generate_lead", {
+  window.gtag("event", "conversion", {
     send_to: `${ADS_ID}/${CONVERSION_LABEL}`,
     value: leadValue(lead),
     currency: "EUR",
