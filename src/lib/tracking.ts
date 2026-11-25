@@ -4,10 +4,9 @@
  * À appeler UNIQUEMENT après confirmation serveur de /api/demandes/create.
  * Sinon on compte des leads qui n'ont jamais été enregistrés.
  *
- * Valeur = ce que le lead rapporte à la plateforme en jetons :
- *   - remplacement + assurance bris de glace : 3 jetons = 30 €
- *   - remplacement sans assurance            : 2 jetons = 20 €
- *   - réparation d'impact / vitre            : 1 jeton  = 10 €
+ * Aucune valeur monétaire n'est envoyée : le modèle économique de la
+ * plateforme n'est plus basé sur des jetons. La conversion est comptée,
+ * et Google Ads applique la valeur par défaut de l'action de conversion.
  *
  * Renseigner NEXT_PUBLIC_GOOGLE_ADS_ID et NEXT_PUBLIC_ADS_LEAD_LABEL
  * (Google Ads > Objectifs > Conversions > votre action > Configurer le tag),
@@ -32,18 +31,12 @@ type Lead = {
   insurance: "oui" | "non" | null;
 };
 
-export function leadValue({ intervention, insurance }: Lead): number {
-  if (intervention !== "remplacement") return 10;
-  return insurance === "oui" ? 30 : 20;
-}
 
 export function trackLead(lead: Lead) {
   if (!IS_CONFIGURED) return;
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   window.gtag("event", "conversion", {
     send_to: `${ADS_ID}/${CONVERSION_LABEL}`,
-    value: leadValue(lead),
-    currency: "EUR",
     lead_type: lead.intervention ?? "inconnu",
     has_insurance: lead.insurance === "oui",
   });
